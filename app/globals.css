@@ -207,8 +207,8 @@ strong, .stat-card strong, .summary-card strong,
   min-height: 34px;
   padding: 0 14px;
   border-radius: 999px;
-  background: rgba(208, 240, 109, 0.16);
-  border: 1px solid rgba(208, 240, 109, 0.22);
+  background: rgba(240, 164, 42, 0.16);
+  border: 1px solid rgba(240, 164, 42, 0.22);
   color: white;
   font-size: 0.78rem;
   font-weight: 700;
@@ -230,7 +230,7 @@ strong, .stat-card strong, .summary-card strong,
   padding: 18px 18px 16px;
   border-radius: 28px;
   background:
-    radial-gradient(circle at top right, rgba(208, 240, 109, 0.08), transparent 32%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.08), transparent 32%),
     linear-gradient(180deg, rgba(15, 21, 24, 0.96) 0%, rgba(11, 18, 21, 0.92) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 22px 50px rgba(5, 12, 15, 0.18);
@@ -269,7 +269,7 @@ strong, .stat-card strong, .summary-card strong,
 }
 
 .market-card__status--live {
-  background: rgba(208, 240, 109, 0.16);
+  background: rgba(240, 164, 42, 0.16);
   color: #e6ff98;
 }
 
@@ -1184,8 +1184,8 @@ tr:last-child td {
   --muted: #61717a;
   --line: rgba(18, 24, 27, 0.1);
   --blue: #83aef8;
-  --accent: #d0f06d;
-  --accent-deep: #2b5d4e;
+  --accent: #f0a42a;
+  --accent-deep: #8b4000;
   --dark: #0e1518;
   --shadow: 0 28px 80px rgba(10, 17, 20, 0.12);
   --radius: 30px;
@@ -1193,7 +1193,7 @@ tr:last-child td {
 
 body {
   background:
-    radial-gradient(circle at 12% 0%, rgba(208, 240, 109, 0.22), transparent 20%),
+    radial-gradient(circle at 12% 0%, rgba(240, 164, 42, 0.22), transparent 20%),
     radial-gradient(circle at 88% 8%, rgba(131, 174, 248, 0.14), transparent 22%),
     linear-gradient(180deg, #090f12 0%, #10181c 22%, #f2eee5 22.01%, #ebe7de 100%);
 }
@@ -1219,7 +1219,7 @@ body {
 }
 
 .site-header__brand em {
-  color: rgba(208, 240, 109, 0.82);
+  color: rgba(240, 164, 42, 0.82);
   font-size: 0.68rem;
   font-style: normal;
   letter-spacing: 0.18em;
@@ -1233,8 +1233,8 @@ body {
 .site-header__cta,
 .button--primary {
   color: var(--dark);
-  background: linear-gradient(135deg, var(--accent) 0%, #8de289 100%);
-  box-shadow: 0 20px 38px rgba(208, 240, 109, 0.22);
+  background: linear-gradient(135deg, var(--accent) 0%, #f5c56e 100%);
+  box-shadow: 0 20px 38px rgba(240, 164, 42, 0.22);
 }
 
 .button--secondary {
@@ -1252,7 +1252,7 @@ body {
   padding: 64px;
   border-radius: 48px;
   background:
-    radial-gradient(circle at top left, rgba(208, 240, 109, 0.16), transparent 26%),
+    radial-gradient(circle at top left, rgba(240, 164, 42, 0.16), transparent 26%),
     radial-gradient(circle at 82% 18%, rgba(131, 174, 248, 0.14), transparent 24%),
     linear-gradient(135deg, #0c1316 0%, #172226 52%, #10211e 100%);
   box-shadow: 0 40px 100px rgba(5, 12, 15, 0.22);
@@ -1463,7 +1463,7 @@ body {
 
 .feature-band {
   background:
-    radial-gradient(circle at top left, rgba(208, 240, 109, 0.2), transparent 24%),
+    radial-gradient(circle at top left, rgba(240, 164, 42, 0.2), transparent 24%),
     linear-gradient(140deg, #121a1d 0%, #18262a 56%, #0f1e1b 100%);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 40px 100px rgba(5, 12, 15, 0.18);
@@ -1487,7 +1487,7 @@ body {
   padding: 40px 44px;
   border-radius: 40px;
   background:
-    radial-gradient(circle at top left, rgba(208, 240, 109, 0.15), transparent 30%),
+    radial-gradient(circle at top left, rgba(240, 164, 42, 0.15), transparent 30%),
     linear-gradient(140deg, #0d1417 0%, #182429 58%, #10211d 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 32px 90px rgba(5, 12, 15, 0.2);
@@ -1507,7 +1507,7 @@ body {
 .reference-card--active {
   border-color: rgba(43, 93, 78, 0.18);
   background:
-    radial-gradient(circle at top right, rgba(208, 240, 109, 0.2), transparent 38%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.2), transparent 38%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 247, 235, 0.92));
 }
 
@@ -1515,13 +1515,13 @@ body {
 .upload-compact {
   border-color: rgba(43, 93, 78, 0.18);
   background:
-    radial-gradient(circle at top right, rgba(208, 240, 109, 0.14), transparent 34%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.14), transparent 34%),
     rgba(246, 248, 239, 0.92);
 }
 
 .result-main {
   background:
-    radial-gradient(circle at top left, rgba(208, 240, 109, 0.12), transparent 28%),
+    radial-gradient(circle at top left, rgba(240, 164, 42, 0.12), transparent 28%),
     linear-gradient(145deg, #121b1f 0%, #1b282d 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
@@ -1553,7 +1553,7 @@ body {
 
 .layout-canvas {
   background:
-    radial-gradient(circle at top right, rgba(208, 240, 109, 0.1), transparent 30%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.1), transparent 30%),
     linear-gradient(180deg, #f9f6f0 0%, #efebe2 100%);
 }
 
@@ -1566,7 +1566,7 @@ body {
 }
 
 .layout-canvas__block--grid {
-  fill: rgba(208, 240, 109, 0.28);
+  fill: rgba(240, 164, 42, 0.28);
 }
 
 @media (max-width: 1180px) {
@@ -2367,7 +2367,7 @@ body {
   --line: rgba(15, 23, 42, 0.08);
   --line-strong: rgba(15, 23, 42, 0.14);
   --blue: #4f7cff;
-  --accent: #c8ef63;
+  --accent: #f0a42a;
   --accent-deep: #0f766e;
   --dark: #07111b;
   --shadow: 0 26px 80px rgba(15, 23, 42, 0.1);
@@ -2382,7 +2382,7 @@ html {
 body {
   min-width: 360px;
   background:
-    radial-gradient(circle at 10% 0%, rgba(200, 239, 99, 0.12), transparent 16%),
+    radial-gradient(circle at 10% 0%, rgba(240, 164, 42, 0.12), transparent 16%),
     radial-gradient(circle at 92% 6%, rgba(79, 124, 255, 0.12), transparent 18%),
     linear-gradient(180deg, #06101a 0%, #0b1620 17%, #f4f7fb 17.01%, #eef3f8 100%);
   color: var(--ink);
@@ -2431,7 +2431,7 @@ textarea {
 }
 
 .site-header__brand em {
-  color: rgba(200, 239, 99, 0.92);
+  color: rgba(240, 164, 42, 0.92);
   font-size: 0.73rem;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -2468,7 +2468,7 @@ textarea {
 .site-header__nav-item--active {
   color: white;
   background:
-    radial-gradient(circle at top, rgba(200, 239, 99, 0.12), transparent 55%),
+    radial-gradient(circle at top, rgba(240, 164, 42, 0.12), transparent 55%),
     rgba(255, 255, 255, 0.09);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
@@ -2524,7 +2524,7 @@ textarea {
   padding: 56px 60px;
   border-radius: 42px;
   background:
-    radial-gradient(circle at 0% 0%, rgba(200, 239, 99, 0.16), transparent 22%),
+    radial-gradient(circle at 0% 0%, rgba(240, 164, 42, 0.16), transparent 22%),
     radial-gradient(circle at 100% 0%, rgba(79, 124, 255, 0.16), transparent 24%),
     linear-gradient(145deg, #09131f 0%, #132232 56%, #0e1b27 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2709,7 +2709,7 @@ textarea {
 .reference-card--active {
   border-color: rgba(15, 118, 110, 0.18);
   background:
-    radial-gradient(circle at top right, rgba(200, 239, 99, 0.18), transparent 38%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.18), transparent 38%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 249, 237, 0.94));
   box-shadow: 0 16px 32px rgba(15, 118, 110, 0.08);
 }
@@ -2828,7 +2828,7 @@ textarea {
   border-radius: 34px;
   gap: 26px;
   background:
-    radial-gradient(circle at top left, rgba(200, 239, 99, 0.12), transparent 28%),
+    radial-gradient(circle at top left, rgba(240, 164, 42, 0.12), transparent 28%),
     linear-gradient(145deg, #0f1a27 0%, #162435 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 34px 90px rgba(8, 14, 17, 0.2);
@@ -3171,7 +3171,7 @@ textarea {
   width: 340px;
   height: 340px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(200, 239, 99, 0.14), transparent 64%);
+  background: radial-gradient(circle, rgba(240, 164, 42, 0.14), transparent 64%);
   pointer-events: none;
 }
 
@@ -3204,7 +3204,7 @@ textarea {
 
 .page-shell--estimate .result-main__meta div:first-child {
   background:
-    radial-gradient(circle at top right, rgba(200, 239, 99, 0.12), transparent 56%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.12), transparent 56%),
     rgba(255, 255, 255, 0.08);
 }
 
@@ -3240,7 +3240,7 @@ textarea {
 
 .page-shell--estimate .summary-grid--wide > .summary-card:nth-child(3) {
   background:
-    radial-gradient(circle at top right, rgba(200, 239, 99, 0.18), transparent 36%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.18), transparent 36%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 239, 0.94));
   border-color: rgba(160, 195, 77, 0.18);
 }
@@ -3292,7 +3292,7 @@ textarea {
 .page-shell--estimate .comparison-grid > .panel-surface:first-child {
   grid-column: 1 / -1;
   background:
-    radial-gradient(circle at top right, rgba(200, 239, 99, 0.12), transparent 30%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.12), transparent 30%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 252, 0.92));
 }
 
@@ -3473,7 +3473,7 @@ textarea {
 
 .page-shell--estimate .estimate-shell--buyer .result-main {
   background:
-    radial-gradient(circle at top right, rgba(200, 239, 99, 0.2), transparent 32%),
+    radial-gradient(circle at top right, rgba(240, 164, 42, 0.2), transparent 32%),
     linear-gradient(135deg, #0f223f, #14305a 58%, #193b70);
 }
 
@@ -5225,7 +5225,7 @@ body::before {
   height: 560px;
   top: -120px;
   left: -120px;
-  background: radial-gradient(circle, rgba(200, 239, 99, 0.08), transparent 70%);
+  background: radial-gradient(circle, rgba(240, 164, 42, 0.08), transparent 70%);
   animation: orb-drift 9s ease-in-out infinite;
 }
 
@@ -5251,4 +5251,483 @@ body::after {
   .page-shell {
     padding-top: 96px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   앱 셸 — 사이드바 + 콘텐츠 영역 레이아웃 (Procore / ACC 패턴)
+   ═══════════════════════════════════════════════════════════════ */
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-content {
+  flex: 1;
+  min-width: 0;
+  margin-left: 240px;
+}
+
+/* 데스크톱에서는 플로팅 헤더 숨김 — 사이드바가 대신함 */
+@media (min-width: 821px) {
+  .site-header {
+    display: none;
+  }
+}
+
+/* 사이드바가 없을 때 콘텐츠 여백 초기화 */
+@media (max-width: 820px) {
+  .app-content {
+    margin-left: 0;
+  }
+}
+
+/* 데스크톱 — page-shell 상단 여백을 사이드바 기준으로 조정 */
+@media (min-width: 821px) {
+  .page-shell {
+    padding-top: 40px;
+  }
+
+  .page-shell--landing {
+    padding-top: 28px;
+  }
+}
+
+/* 배경 — 순수 웜 베이지로 단순화 (dark top band 제거) */
+@media (min-width: 821px) {
+  body {
+    background:
+      radial-gradient(circle at 6% 0%, rgba(240, 164, 42, 0.10), transparent 24%),
+      radial-gradient(circle at 94% 6%, rgba(131, 174, 248, 0.08), transparent 22%),
+      linear-gradient(180deg, #f2ede4 0%, #ece8df 60%, #e4e0d7 100%);
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   사이드바 컴포넌트
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+.site-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: #0b1118;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 모바일에서 사이드바 숨김 */
+@media (max-width: 820px) {
+  .site-sidebar {
+    display: none;
+  }
+}
+
+/* ── 브랜드 영역 ── */
+
+.site-sidebar__top {
+  padding: 18px 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.site-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 10px;
+  border-radius: 14px;
+  transition: background 200ms var(--ease-out);
+}
+
+.site-sidebar__brand:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.site-sidebar__brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--accent) 0%, #f5c56e 100%);
+  color: #0a1009;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(240, 164, 42, 0.28);
+}
+
+.site-sidebar__brand-text {
+  display: grid;
+  gap: 2px;
+  line-height: 1;
+}
+
+.site-sidebar__brand-text strong {
+  display: block;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.site-sidebar__brand-text em {
+  display: block;
+  color: var(--accent);
+  font-size: 0.63rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+/* ── 네비게이션 ── */
+
+.site-sidebar__nav {
+  padding: 18px 10px 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.site-sidebar__section-label {
+  margin: 0 0 8px 10px;
+  color: rgba(255, 255, 255, 0.24);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.site-sidebar__nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.46);
+  transition:
+    background 180ms var(--ease-out),
+    color 180ms var(--ease-out);
+}
+
+.site-sidebar__nav-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.site-sidebar__nav-item--active {
+  background: rgba(240, 164, 42, 0.11);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.site-sidebar__nav-item--active:hover {
+  background: rgba(240, 164, 42, 0.16);
+}
+
+.site-sidebar__nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  transition: background 180ms var(--ease-out), color 180ms var(--ease-out);
+}
+
+.site-sidebar__nav-item--active .site-sidebar__nav-icon {
+  background: rgba(240, 164, 42, 0.18);
+  color: var(--accent);
+}
+
+.site-sidebar__nav-text {
+  display: grid;
+  gap: 2px;
+  line-height: 1;
+}
+
+.site-sidebar__nav-text strong {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.site-sidebar__nav-text small {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0.5;
+}
+
+.site-sidebar__nav-pip {
+  position: absolute;
+  right: 12px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(240, 164, 42, 0.5);
+}
+
+/* ── 구분선 + 푸터 ── */
+
+.site-sidebar__divider {
+  margin: 0 14px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.site-sidebar__footer {
+  padding: 14px 14px 18px;
+  flex-shrink: 0;
+}
+
+.site-sidebar__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.site-sidebar__version-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(240, 164, 42, 0.12);
+  border: 1px solid rgba(240, 164, 42, 0.18);
+  color: rgba(240, 164, 42, 0.72);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.site-sidebar__meta-text {
+  color: rgba(255, 255, 255, 0.24);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.site-sidebar__meta-sub {
+  margin: 4px 0 0;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.16);
+  font-size: 0.68rem;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   견적 상태 워크플로우 배지 (Procore 패턴 차용)
+   Draft → Under Review → Approved → Finalized
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+.workflow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+
+.workflow-badge::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.workflow-badge--draft {
+  background: rgba(18, 24, 27, 0.06);
+  color: var(--muted);
+  border-color: rgba(18, 24, 27, 0.1);
+}
+
+.workflow-badge--review {
+  background: rgba(234, 140, 0, 0.12);
+  color: #a05f00;
+  border-color: rgba(234, 140, 0, 0.2);
+}
+
+.workflow-badge--approved {
+  background: rgba(34, 167, 102, 0.12);
+  color: #1b7d4d;
+  border-color: rgba(34, 167, 102, 0.2);
+}
+
+.workflow-badge--finalized {
+  background: rgba(0, 113, 227, 0.1);
+  color: #0060c7;
+  border-color: rgba(0, 113, 227, 0.18);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   페이지 상단 컨텍스트 바 (Autodesk ACC 패턴)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+.page-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.page-topbar__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.page-topbar__breadcrumb-sep {
+  opacity: 0.4;
+  font-size: 0.72rem;
+}
+
+.page-topbar__breadcrumb-current {
+  color: var(--ink);
+}
+
+.page-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   KPI 스트립 — 주요 지표 한눈에 (Oracle 패턴)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+.kpi-strip {
+  display: flex;
+  gap: 0;
+  padding: 16px 0;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(18, 24, 27, 0.07);
+  box-shadow: 0 4px 20px rgba(18, 24, 27, 0.05);
+  overflow: hidden;
+}
+
+.kpi-strip__item {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 20px;
+  border-right: 1px solid rgba(18, 24, 27, 0.07);
+}
+
+.kpi-strip__item:last-child {
+  border-right: 0;
+}
+
+.kpi-strip__label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.kpi-strip__value {
+  display: block;
+  color: var(--ink);
+  font-size: 1.24rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.kpi-strip__sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   공정 단계 인디케이터 (Sage Estimating 패턴)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+.phase-track {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.phase-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.phase-step::after {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 1px;
+  background: var(--line);
+  flex-shrink: 0;
+}
+
+.phase-step:last-child::after {
+  display: none;
+}
+
+.phase-step__num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(18, 24, 27, 0.08);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.phase-step--active {
+  color: var(--ink);
+}
+
+.phase-step--active .phase-step__num {
+  background: var(--accent);
+  color: #0a1009;
+}
+
+.phase-step--done .phase-step__num {
+  background: rgba(34, 167, 102, 0.16);
+  color: #1b7d4d;
 }

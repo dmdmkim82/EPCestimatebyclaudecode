@@ -676,6 +676,21 @@ export function EstimateStudio() {
             {input.startYear}
           </span>
           <span className="tag">{selectedProjectOption.label}</span>
+          <span
+            className={
+              result.riskGrade === "HIGH"
+                ? "workflow-badge workflow-badge--review"
+                : result.riskGrade === "LOW"
+                  ? "workflow-badge workflow-badge--approved"
+                  : "workflow-badge workflow-badge--draft"
+            }
+          >
+            {result.riskGrade === "HIGH"
+              ? "검토 필요"
+              : result.riskGrade === "LOW"
+                ? "저위험 확인"
+                : "작성 중"}
+          </span>
         </div>
 
         <div className="estimate-toolbar__actions">

@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navigation = [
-  { href: "/estimate", label: "\uACAC\uC801\uC0B0\uCD9C" },
-  { href: "/economics", label: "\uACBD\uC81C\uC131" },
-  { href: "/b2b", label: "B2B \uC81C\uC548" },
+  { href: "/estimate", label: "견적산출" },
+  { href: "/economics", label: "경제성" },
+  { href: "/b2b", label: "B2B 제안" },
 ];
 
 export function SiteHeader() {
@@ -16,14 +16,15 @@ export function SiteHeader() {
     <header className="site-header">
       <div className="site-header__inner">
         <Link className="site-header__brand" href="/estimate">
-          <span>{"\uC5F0\uB8CC\uC804\uC9C0 EPC"}</span>
-          <em>Studio</em>
+          <span>{"연료전지 EPC"}</span>
+          <em>{"Studio"}</em>
         </Link>
 
         <nav className="site-header__nav" aria-label="Primary">
           {navigation.map((item) => {
             const isActive =
-              pathname === item.href || (item.href === "/estimate" && pathname === "/");
+              pathname === item.href ||
+              (item.href === "/estimate" && pathname === "/");
 
             return (
               <Link
@@ -37,12 +38,6 @@ export function SiteHeader() {
             );
           })}
         </nav>
-
-        <Link className="site-header__cta" href="/estimate">
-          <span className="button__stack">
-            <strong>{"\uACAC\uC801\uC0B0\uCD9C"}</strong>
-          </span>
-        </Link>
       </div>
     </header>
   );
