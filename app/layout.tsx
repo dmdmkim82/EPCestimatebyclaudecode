@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { DisplayConfig } from "@/components/display-config";
 import { SiteHeader } from "@/components/site-header";
+import { SiteSidebar } from "@/components/site-sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,9 +24,14 @@ export default function RootLayout({
         <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@3/dist/iconify.min.js" async />
       </head>
       <body>
-        <SiteHeader />
-        {children}
-        <DisplayConfig />
+        <div className="app-shell">
+          <SiteSidebar />
+          <div className="app-content">
+            <SiteHeader />
+            {children}
+            <DisplayConfig />
+          </div>
+        </div>
       </body>
     </html>
   );
