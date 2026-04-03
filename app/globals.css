@@ -5518,8 +5518,8 @@ body::after {
   }
 }
 
-/* ── coding by claude 뱃지 ───────────────────────────────────────── */
-.claude-badge {
+/* ── coding by codex credit ─────────────────────────────────────── */
+.site-credit {
   position: fixed;
   top: 14px;
   right: 20px;
@@ -5534,5 +5534,5 @@ body::after {
 
 /* 헤더 제거 후 page-shell 상단 여백 초기화 */
 .page-shell {
-  padding-top: 40px !important;
+  padding-top: 22px !important;
 }

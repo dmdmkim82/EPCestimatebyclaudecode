@@ -20,7 +20,7 @@ export default function RootLayout({
         <meta content="no-referrer" name="referrer" />
       </head>
       <body>
-        <span className="claude-badge">coding by claude</span>
+        <span className="site-credit">coding by codex</span>
         {children}
         <DisplayConfig />
       </body>

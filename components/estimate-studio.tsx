@@ -63,7 +63,7 @@ const copy = {
   projectName: "프로젝트명",
   siteName: "현장명",
   capacity: "용량 (MW)",
-  siteAddress: "현장 주소 / 지도 검색어",
+  siteAddress: "현장 주소",
   latitude: "위도",
   longitude: "경도",
   escalation: "물가상승",
@@ -90,8 +90,8 @@ const copy = {
   quote: "견적 결과",
   riskGrade: "리스크 등급",
   referenceDelta: "기준 대비 차이",
-  economicsPage: "경제성 페이지",
-  openEconomics: "경제성 화면 열기",
+  securityStatus: "보안 상태",
+  isolatedMode: "외부 호출 차단",
   scaledReference: "용량 환산 기준금액",
   escalatedReference: "물가상승 반영 기준금액",
   coreSubtotal: "핵심 EPC 소계",
@@ -130,22 +130,6 @@ const copy = {
   siteSummaryTitle: "현장 정보는 입력값으로만 유지",
   siteSummaryDesc: "현장명, 주소, 좌표는 견적 검토용 입력값이며 외부 지도로 전송하지 않습니다.",
   noCoordinates: "좌표 미입력",
-  economics: "경제성",
-  economicsTitle: "견적과 경제성을 분리해 검토합니다.",
-  separatedWorkflow: "분리된 흐름",
-  separatedWorkflowDesc: "견적산출 페이지는 EPC 범위, 리스크, 배치 검토에 집중합니다.",
-  economicsInputs: "경제성 입력값",
-  economicsInputsDesc: "주기기 금액, 판매단가, 연료비, 차입, 세금 가정을 수동 입력합니다.",
-  economicsOutputs: "경제성 결과값",
-  economicsOutputsDesc: "LCOE, 프로젝트 IRR, 자기자본 IRR, DSCR, 회수기간을 확인합니다.",
-  openEconomicsStudio: "경제성 화면 열기",
-  openEconomicsMetrics: "LCOE / 프로젝트 IRR / 자기자본 IRR",
-  mapContext: "지도 기준 검토",
-  mapContextTitle: "위치 기반 현장 검토 프레임",
-  mapPreviewTitle: "현장 위치 미리보기",
-  mapExternalNote:
-    "지도는 브라우저가 외부 지도를 직접 불러옵니다. 업로드 파일 내용은 지도 호출에 포함되지 않습니다.",
-  mapEmpty: "주소 또는 좌표를 입력하면 브라우저에서 현장 위치를 바로 확인할 수 있습니다.",
   virtualLayout: "가상 배치",
   virtualLayoutTitle: "예상 플랜트 배치",
   estimatedLandUse: "예상 필요 면적",
@@ -1209,6 +1193,10 @@ export function EstimateStudio() {
                   {result.referenceDeltaEok >= 0 ? "+" : ""}
                   {formatEok(result.referenceDeltaEok)}
                 </strong>
+              </div>
+              <div>
+                <span>{copy.securityStatus}</span>
+                <strong>{copy.isolatedMode}</strong>
               </div>
             </div>
           </div>
