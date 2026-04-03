@@ -5,8 +5,6 @@ import { usePathname } from "next/navigation";
 
 const navigation = [
   { href: "/estimate", label: "\uACAC\uC801\uC0B0\uCD9C" },
-  { href: "/economics", label: "\uACBD\uC81C\uC131" },
-  { href: "/b2b", label: "B2B \uC81C\uC548" },
 ];
 
 export function SiteHeader() {

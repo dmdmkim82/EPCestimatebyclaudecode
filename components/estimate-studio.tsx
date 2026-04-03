@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type ChangeEvent } from "react";
 import {
   EstimateAnalytics,
@@ -44,7 +43,7 @@ const copy = {
   uploadTrustTitle: "파일 처리 안내",
   uploadTrustPrimary: "업로드된 파일은 브라우저에서만 처리되며 외부로 전송되지 않습니다.",
   uploadTrustSecondary:
-    "지도와 참고 시세만 브라우저가 외부 원문을 직접 참조합니다. 업로드 파일 내용은 포함되지 않습니다.",
+    "브라우저 저장소와 외부 API를 사용하지 않으며, 업로드 결과는 현재 세션 메모리에만 유지됩니다.",
   uploadTrustTertiary:
     "내부 검토 시에는 확장 프로그램이 없는 시크릿 모드 사용을 권장합니다.",
   uploadTrustQuaternary: "민감한 작업 후에는 브라우저를 완전히 종료하세요.",
@@ -119,6 +118,18 @@ const copy = {
   impact: "예상 영향",
   estimateBasis: "산출 근거",
   estimateBasisTitle: "현재 금액이 나온 이유",
+  securityPanel: "보안 처리",
+  securityPanelTitle: "업로드와 계산은 현재 세션 내부에서만 처리",
+  securityStorage: "브라우저 저장소 미사용",
+  securityStorageDesc: "localStorage, sessionStorage, indexedDB에 업로드 결과를 남기지 않습니다.",
+  securityNetwork: "외부 전송 차단",
+  securityNetworkDesc: "견적산출 페이지에서는 외부 지도, 시세, API 호출 없이 로컬 파싱과 계산만 수행합니다.",
+  securityReset: "새로고침 시 초기화",
+  securityResetDesc: "새로고침하거나 브라우저를 다시 열면 업로드 결과와 계산 이력이 초기화됩니다.",
+  siteSummary: "현장 입력 요약",
+  siteSummaryTitle: "현장 정보는 입력값으로만 유지",
+  siteSummaryDesc: "현장명, 주소, 좌표는 견적 검토용 입력값이며 외부 지도로 전송하지 않습니다.",
+  noCoordinates: "좌표 미입력",
   economics: "경제성",
   economicsTitle: "견적과 경제성을 분리해 검토합니다.",
   separatedWorkflow: "분리된 흐름",
@@ -310,15 +321,6 @@ export function EstimateStudio() {
     Number.isFinite(input.latitude) &&
     Number.isFinite(input.longitude) &&
     (Math.abs(input.latitude) > 0.0001 || Math.abs(input.longitude) > 0.0001);
-  const hasAddress = input.siteAddress.trim().length > 0;
-  const mapQuery = hasCoordinates
-    ? `${input.latitude},${input.longitude}`
-    : hasAddress
-      ? input.siteAddress.trim()
-      : "";
-  const mapEmbedUrl = mapQuery
-    ? `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=14&output=embed`
-    : null;
   const selectedProjectOption =
     PROJECT_OPTIONS.find((option) => option.id === input.projectType) ?? PROJECT_OPTIONS[0];
   const summaryCards = [
@@ -1208,14 +1210,6 @@ export function EstimateStudio() {
                   {formatEok(result.referenceDeltaEok)}
                 </strong>
               </div>
-              <div>
-                <span>{copy.economicsPage}</span>
-                <strong>
-                  <Link className="text-link" href="/economics">
-                    {copy.openEconomics}
-                  </Link>
-                </strong>
-              </div>
             </div>
           </div>
 
@@ -1512,54 +1506,31 @@ export function EstimateStudio() {
 
             <article className="panel-surface">
               <div className="panel-surface__header">
-                <span className="control-label">{copy.economics}</span>
-                <h3>{copy.economicsTitle}</h3>
+                <span className="control-label">{copy.securityPanel}</span>
+                <h3>{copy.securityPanelTitle}</h3>
               </div>
               <div className="detail-list">
                 <div className="detail-list__row">
-                  <strong>{copy.separatedWorkflow}</strong>
-                  <span>{copy.separatedWorkflowDesc}</span>
+                  <strong>{copy.securityStorage}</strong>
+                  <span>{copy.securityStorageDesc}</span>
                 </div>
                 <div className="detail-list__row">
-                  <strong>{copy.economicsInputs}</strong>
-                  <span>{copy.economicsInputsDesc}</span>
+                  <strong>{copy.securityNetwork}</strong>
+                  <span>{copy.securityNetworkDesc}</span>
                 </div>
                 <div className="detail-list__row">
-                  <strong>{copy.economicsOutputs}</strong>
-                  <span>{copy.economicsOutputsDesc}</span>
+                  <strong>{copy.securityReset}</strong>
+                  <span>{copy.securityResetDesc}</span>
                 </div>
               </div>
-              <Link
-                className="button button--secondary button--secondary-light economics-link"
-                href="/economics"
-              >
-                <span className="button__stack">
-                  <strong>{copy.openEconomicsStudio}</strong>
-                  <small>{copy.openEconomicsMetrics}</small>
-                </span>
-              </Link>
             </article>
 
             <article className="panel-surface">
               <div className="panel-surface__header">
-                <span className="control-label">{copy.mapContext}</span>
-                <h3>{copy.mapContextTitle}</h3>
+                <span className="control-label">{copy.siteSummary}</span>
+                <h3>{copy.siteSummaryTitle}</h3>
               </div>
-              {mapEmbedUrl ? (
-                <div className="map-frame">
-                  <iframe
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    src={mapEmbedUrl}
-                    title={copy.mapPreviewTitle}
-                  />
-                </div>
-              ) : (
-                <div className="map-frame map-frame--placeholder">
-                  <p>{copy.mapEmpty}</p>
-                </div>
-              )}
-              <p className="map-frame__note">{copy.mapExternalNote}</p>
+              <p className="empty-state">{copy.siteSummaryDesc}</p>
               <div className="detail-list">
                 <div className="detail-list__row">
                   <strong>현장명</strong>
@@ -1572,14 +1543,16 @@ export function EstimateStudio() {
                 <div className="detail-list__row">
                   <strong>좌표</strong>
                   <span>
-                    {input.latitude.toFixed(4)}, {input.longitude.toFixed(4)}
+                    {hasCoordinates
+                      ? `${input.latitude.toFixed(4)}, ${input.longitude.toFixed(4)}`
+                      : copy.noCoordinates}
                   </span>
                 </div>
               </div>
               <div className="tag-row">
-                <span className="tag">브라우저 직접 조회</span>
+                <span className="tag">{copy.securityNetwork}</span>
                 <span className="tag">{input.siteName}</span>
-                <span className="tag">{input.siteAddress}</span>
+                <span className="tag">{input.siteAddress || "주소 미입력"}</span>
               </div>
             </article>
 
