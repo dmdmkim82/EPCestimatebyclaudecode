@@ -16,15 +16,55 @@ export type MarketBoardItem = {
   live: boolean;
 };
 
-function takeLast<T>(items: T[], count: number) {
-  return items.slice(Math.max(items.length - count, 0));
-}
+export type PricesApiResponse = {
+  updatedAt: string;
+  fx: number | null;
+  hrcKrwPerTon: number | null;
+  copperKrwPerTon: number | null;
+};
 
 /**
- * EPC 공사 대표 품목 — 한국물가정보(KPRC) 기준
- * 단가는 브라우저에서 KPRC 직접 조회 후 수동 확인 (AI 추정값 미사용)
+ * EPC 공사 대표 품목 — 기본값 (자동 조회 전 초기 상태)
+ *
+ * 자동 조회 (하루 1회):
+ *   - 국제 HRC 철강 (Yahoo Finance HRC=F → 원화 환산, 참고용)
+ *   - 국제 구리    (Yahoo Finance HG=F  → 원화 환산, 참고용)
+ *   - 환율 USD/KRW (Frankfurter)
+ *
+ * 수동 참조 (KPRC 직접 확인):
+ *   - 철근 HD19, 레미콘 25-240-12, 강관 φ50A, 건설노임
  */
 export const DEFAULT_MARKET_BOARD: MarketBoardItem[] = [
+  {
+    id: "hrc",
+    title: "HRC 철강",
+    subtitle: "국제선물 · 원/t 환산",
+    value: "-",
+    unit: "원/t",
+    changeText: "조회 중",
+    changeDirection: "flat",
+    cadence: "일간",
+    updatedAt: "Yahoo Finance",
+    sourceLabel: "Yahoo HRC=F",
+    sourceUrl: "https://finance.yahoo.com/quote/HRC=F/",
+    points: [98, 99, 100, 101, 102, 101, 100, 99],
+    live: false,
+  },
+  {
+    id: "copper",
+    title: "구리",
+    subtitle: "국제선물 · 원/t 환산",
+    value: "-",
+    unit: "원/t",
+    changeText: "조회 중",
+    changeDirection: "flat",
+    cadence: "일간",
+    updatedAt: "Yahoo Finance",
+    sourceLabel: "Yahoo HG=F",
+    sourceUrl: "https://finance.yahoo.com/quote/HG=F/",
+    points: [101, 101, 100, 100, 99, 99, 100, 100],
+    live: false,
+  },
   {
     id: "rebar",
     title: "철근",
@@ -37,22 +77,7 @@ export const DEFAULT_MARKET_BOARD: MarketBoardItem[] = [
     updatedAt: "KPRC",
     sourceLabel: "KPRC 철강",
     sourceUrl: "https://kprc.or.kr/main.do?menuID=100000",
-    points: takeLast([98, 99, 100, 101, 102, 101, 100, 99], 8),
-    live: false,
-  },
-  {
-    id: "hbeam",
-    title: "H형강",
-    subtitle: "200×200 · 원/t",
-    value: "-",
-    unit: "원/t",
-    changeText: "KPRC 참조",
-    changeDirection: "flat",
-    cadence: "월간",
-    updatedAt: "KPRC",
-    sourceLabel: "KPRC 형강",
-    sourceUrl: "https://kprc.or.kr/main.do?menuID=100000",
-    points: takeLast([101, 101, 100, 100, 99, 99, 100, 100], 8),
+    points: [99, 100, 100, 101, 101, 100, 99, 99],
     live: false,
   },
   {
@@ -67,22 +92,7 @@ export const DEFAULT_MARKET_BOARD: MarketBoardItem[] = [
     updatedAt: "KPRC",
     sourceLabel: "KPRC 레미콘",
     sourceUrl: "https://kprc.or.kr/main.do?menuID=100000",
-    points: takeLast([99, 100, 100, 101, 101, 101, 100, 100], 8),
-    live: false,
-  },
-  {
-    id: "pipe",
-    title: "강관",
-    subtitle: "배관용 φ50A · 원/m",
-    value: "-",
-    unit: "원/m",
-    changeText: "KPRC 참조",
-    changeDirection: "flat",
-    cadence: "월간",
-    updatedAt: "KPRC",
-    sourceLabel: "KPRC 배관",
-    sourceUrl: "https://kprc.or.kr/main.do?menuID=100000",
-    points: takeLast([100, 100, 101, 101, 100, 99, 99, 100], 8),
+    points: [100, 100, 101, 101, 101, 100, 100, 100],
     live: false,
   },
   {
@@ -97,7 +107,7 @@ export const DEFAULT_MARKET_BOARD: MarketBoardItem[] = [
     updatedAt: "KPRC",
     sourceLabel: "KPRC 노임",
     sourceUrl: "https://kprc.or.kr/main.do?menuID=100000",
-    points: takeLast([99, 99, 100, 100, 101, 101, 101, 102], 8),
+    points: [99, 100, 100, 101, 101, 101, 102, 102],
     live: false,
   },
   {
@@ -112,7 +122,7 @@ export const DEFAULT_MARKET_BOARD: MarketBoardItem[] = [
     updatedAt: "Frankfurter",
     sourceLabel: "Frankfurter API",
     sourceUrl: "https://www.frankfurter.app/",
-    points: takeLast([100, 101, 100, 100, 99, 100, 101, 101], 8),
+    points: [100, 101, 100, 100, 99, 100, 101, 101],
     live: false,
   },
 ];

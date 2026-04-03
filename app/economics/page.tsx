@@ -6,26 +6,24 @@ export default function EconomicsPage() {
     <main className="page-shell page-shell--studio page-shell--economics">
       <MarketBoard />
 
-      <section className="studio-hero studio-hero--mix">
+      <section className="studio-hero studio-hero--mix studio-hero--compact">
         <div className="studio-hero__copy">
-          <span className="section-label">{"\uACBD\uC81C\uC131"}</span>
-          <h1 className="section-title">
-            <span className="title-ko">{"\uD22C\uC790\uC9C0\uD45C \uAC80\uD1A0"}</span>
-          </h1>
+          <span className="section-label">{"경제성"}</span>
+          <h1 className="section-title--sm">{"투자지표 검토"}</h1>
         </div>
 
-        <div className="studio-hero__stats">
-          <article className="studio-stat">
-            <span>{"\uD575\uC2EC \uC9C0\uD45C"}</span>
-            <strong>LCOE / Project IRR / Equity IRR</strong>
+        <div className="studio-hero__stats studio-hero__stats--row">
+          <article className="studio-stat studio-stat--sm">
+            <span>{"핵심 지표"}</span>
+            <strong>{"LCOE · IRR"}</strong>
           </article>
-          <article className="studio-stat">
-            <span>{"\uCC28\uC785 \uC548\uC815\uC131"}</span>
-            <strong>{"\uCD5C\uC18C DSCR / \uD3C9\uADE0 DSCR"}</strong>
+          <article className="studio-stat studio-stat--sm">
+            <span>{"차입 안정성"}</span>
+            <strong>{"DSCR"}</strong>
           </article>
-          <article className="studio-stat">
-            <span>{"\uBBFC\uAC10\uB3C4"}</span>
-            <strong>{"\uD1A0\uB124\uC774\uB3C4 \uCC28\uD2B8"}</strong>
+          <article className="studio-stat studio-stat--sm">
+            <span>{"민감도"}</span>
+            <strong>{"토네이도"}</strong>
           </article>
         </div>
       </section>
