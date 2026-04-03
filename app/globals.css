@@ -5517,3 +5517,22 @@ body::after {
     width: 100%;
   }
 }
+
+/* ── coding by claude 뱃지 ───────────────────────────────────────── */
+.claude-badge {
+  position: fixed;
+  top: 14px;
+  right: 20px;
+  z-index: 9999;
+  font-size: 0.65rem;
+  font-family: var(--font-sans);
+  letter-spacing: 0.04em;
+  color: rgba(110, 110, 115, 0.55);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* 헤더 제거 후 page-shell 상단 여백 초기화 */
+.page-shell {
+  padding-top: 40px !important;
+}

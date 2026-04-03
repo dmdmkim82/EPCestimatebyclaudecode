@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { DisplayConfig } from "@/components/display-config";
-import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,7 +20,7 @@ export default function RootLayout({
         <meta content="no-referrer" name="referrer" />
       </head>
       <body>
-        <SiteHeader />
+        <span className="claude-badge">coding by claude</span>
         {children}
         <DisplayConfig />
       </body>
