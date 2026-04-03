@@ -3,78 +3,48 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_MARKET_BOARD, type MarketBoardItem, type TrendDirection } from "@/lib/market-board";
 
-const copy = {
-  title: "건설비 전광판",
-  subtitle: "브라우저 참조 보드",
-  note: "브라우저 직접 조회",
-  note2: "파일 데이터 제외",
-  live: "실시간 반영",
-  fallback: "브라우저 참조",
-  source: "출처",
-  open: "열기",
-};
-
 function buildSparklinePath(points: number[]) {
   if (points.length < 2) return "";
-
   const min = Math.min(...points);
   const max = Math.max(...points);
   const range = max - min || 1;
-
   return points
-    .map((value, index) => {
-      const x = points.length === 1 ? 0 : (index / (points.length - 1)) * 100;
-      const y = 100 - ((value - min) / range) * 100;
-      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    .map((v, i) => {
+      const x = (i / (points.length - 1)) * 100;
+      const y = 100 - ((v - min) / range) * 100;
+      return `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
     })
     .join(" ");
 }
 
+function toIsoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
 function shiftDate(base: Date, months: number) {
-  const next = new Date(base);
-  next.setMonth(next.getMonth() + months);
-  return next;
+  const d = new Date(base);
+  d.setMonth(d.getMonth() + months);
+  return d;
 }
 
-function toIsoDate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function formatPct(current: number, previous: number) {
-  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) {
-    return { text: "참조 링크", direction: "flat" as TrendDirection };
-  }
-
-  const pct = ((current - previous) / previous) * 100;
-  const direction: TrendDirection = pct > 0.05 ? "up" : pct < -0.05 ? "down" : "flat";
-  const sign = pct > 0 ? "+" : "";
-
+function formatPct(cur: number, prev: number) {
+  if (!Number.isFinite(cur) || !Number.isFinite(prev) || prev === 0)
+    return { text: "-", direction: "flat" as TrendDirection };
+  const pct = ((cur - prev) / prev) * 100;
   return {
-    text: `${sign}${pct.toFixed(1)}%`,
-    direction,
+    text: `${pct > 0 ? "+" : ""}${pct.toFixed(1)}%`,
+    direction: (pct > 0.05 ? "up" : pct < -0.05 ? "down" : "flat") as TrendDirection,
   };
 }
 
-async function fetchFxRate(date?: Date) {
+async function fetchFx(date?: Date) {
   const path = date ? toIsoDate(date) : "latest";
-  const response = await fetch(`https://api.frankfurter.app/${path}?from=USD&to=KRW`, {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`FX request failed: ${response.status}`);
-  }
-
-  const json = (await response.json()) as { amount?: number; date?: string; rates?: Record<string, number> };
+  const res = await fetch(`https://api.frankfurter.app/${path}?from=USD&to=KRW`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`FX ${res.status}`);
+  const json = (await res.json()) as { date?: string; rates?: Record<string, number> };
   const rate = json.rates?.KRW;
-  if (!rate || !Number.isFinite(rate)) {
-    throw new Error("FX rate missing");
-  }
-
-  return {
-    rate,
-    date: json.date ?? toIsoDate(date ?? new Date()),
-  };
+  if (!rate) throw new Error("no KRW");
+  return { rate, date: json.date ?? toIsoDate(date ?? new Date()) };
 }
 
 export function MarketBoard() {
@@ -82,151 +52,104 @@ export function MarketBoard() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function loadFx() {
       try {
         const today = new Date();
         const monthAgo = shiftDate(today, -1);
-        const yearAgo = shiftDate(today, -12);
-        const sparkDates = Array.from({ length: 8 }, (_, index) =>
-          shiftDate(today, index - 7),
-        );
-
-        const [current, month, year, ...sparkValues] = await Promise.all([
-          fetchFxRate(),
-          fetchFxRate(monthAgo),
-          fetchFxRate(yearAgo),
-          ...sparkDates.map((date) => fetchFxRate(date)),
+        const sparkDates = Array.from({ length: 8 }, (_, i) => shiftDate(today, i - 7));
+        const [cur, prev, ...sparks] = await Promise.all([
+          fetchFx(),
+          fetchFx(monthAgo),
+          ...sparkDates.map(fetchFx),
         ]);
-
         if (cancelled) return;
-
-        const monthChange = formatPct(current.rate, month.rate);
-        const yearChange = formatPct(current.rate, year.rate);
-
-        setItems((currentItems) =>
-          currentItems.map((item) =>
+        const { text, direction } = formatPct(cur.rate, prev.rate);
+        setItems((prev) =>
+          prev.map((item) =>
             item.id !== "fx"
               ? item
               : {
                   ...item,
-                  value: current.rate.toLocaleString("ko-KR", {
-                    maximumFractionDigits: 2,
-                    minimumFractionDigits: 2,
-                  }),
-                  monthText: monthChange.text,
-                  monthDirection: monthChange.direction,
-                  yearText: yearChange.text,
-                  yearDirection: yearChange.direction,
-                  updatedAt: current.date,
-                  points: sparkValues.map((entry) => entry.rate),
+                  value: cur.rate.toLocaleString("ko-KR", { maximumFractionDigits: 0 }),
+                  changeText: text,
+                  changeDirection: direction,
+                  updatedAt: cur.date,
+                  points: sparks.map((s) => s.rate),
                   live: true,
                 },
           ),
         );
-      } catch {
-        if (cancelled) return;
-      }
+      } catch { /* fallback */ }
     }
-
     loadFx();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   return (
-    <section aria-label={copy.title} className="market-board">
+    <section aria-label="건설비 전광판" className="market-board">
       <div className="market-board__inner">
-        <div className="market-board__meta">
-          <div>
-            <span className="market-board__eyebrow">
-              {copy.title}
-              <small>{copy.subtitle}</small>
-            </span>
-          </div>
-          <div className="market-board__chips">
-            <span className="market-board__chip">{copy.note}</span>
-            <span className="market-board__chip market-board__chip--ghost">{copy.note2}</span>
-          </div>
+
+        {/* 헤더 */}
+        <div className="mb-header">
+          <span className="mb-eyebrow">
+            건설비 전광판
+            <small>KPRC · 브라우저 직접 참조</small>
+          </span>
+          <span className="mb-badge">파일 데이터 미포함</span>
         </div>
 
-        <div className="market-board__grid">
-          {items.map((item) => {
-            const sparklinePath = buildSparklinePath(item.points);
+        {/* 카드 그리드 */}
+        <div className="mb-grid">
+          {items.map((item) => (
+            <article className="mb-card" key={item.id}>
 
-            return (
-              <article className="market-card" key={item.id}>
-                <div className="market-card__top">
-                  <div>
-                    <span className="market-card__label">{item.title}</span>
-                    <strong className="market-card__subtitle">{item.subtitle}</strong>
-                  </div>
-                  <span
-                    className={`market-card__status ${
-                      item.live ? "market-card__status--live" : "market-card__status--fallback"
-                    }`}
-                  >
-                    {item.live ? copy.live : copy.fallback}
-                  </span>
+              {/* 상단: 품목 + 상태 뱃지 */}
+              <div className="mb-card__head">
+                <div>
+                  <span className="mb-card__title">{item.title}</span>
+                  <span className="mb-card__sub">{item.subtitle}</span>
                 </div>
+                <span className={`mb-card__badge ${item.live ? "mb-card__badge--live" : ""}`}>
+                  {item.live ? "Live" : "참조"}
+                </span>
+              </div>
 
-                <div className="market-card__price">
-                  <strong>{item.value}</strong>
-                  <span>{item.unit}</span>
-                </div>
+              {/* 가격 */}
+              <div className="mb-card__price">
+                <strong>{item.value}</strong>
+              </div>
 
-                <div className="market-card__compare-grid">
-                  <div className="market-compare">
-                    <span>{item.monthLabel}</span>
-                    <strong
-                      className={`market-compare__value market-compare__value--${item.monthDirection}`}
-                    >
-                      {item.monthText}
-                    </strong>
-                  </div>
-                  <div className="market-compare">
-                    <span>{item.yearLabel}</span>
-                    <strong
-                      className={`market-compare__value market-compare__value--${item.yearDirection}`}
-                    >
-                      {item.yearText}
-                    </strong>
-                  </div>
-                </div>
+              {/* 변동 */}
+              <div className={`mb-card__change mb-card__change--${item.changeDirection}`}>
+                {item.changeText}
+              </div>
 
-                <div aria-hidden="true" className="market-card__sparkline">
-                  <svg preserveAspectRatio="none" viewBox="0 0 100 100">
-                    <path className="market-card__sparkline-track" d="M 0 50 L 100 50" />
-                    {sparklinePath ? (
-                      <path className="market-card__sparkline-line" d={sparklinePath} />
-                    ) : null}
-                  </svg>
-                </div>
+              {/* 스파크라인 */}
+              <div aria-hidden="true" className="mb-card__spark">
+                <svg preserveAspectRatio="none" viewBox="0 0 100 100">
+                  <path className="mb-spark-track" d="M 0 50 L 100 50" />
+                  {buildSparklinePath(item.points) && (
+                    <path className="mb-spark-line" d={buildSparklinePath(item.points)} />
+                  )}
+                </svg>
+              </div>
 
-                <div className="market-card__footer">
-                  <span>{`${item.cadence} / ${item.updatedAt}`}</span>
-                  <div className="market-card__links">
-                    {item.sourceUrl ? (
-                      <a href={item.sourceUrl} rel="noreferrer" target="_blank">
-                        <span className="market-card__source">
-                          {copy.source}
-                          <small>{item.sourceLabel}</small>
-                        </span>
-                        <small>{copy.open}</small>
-                      </a>
-                    ) : (
-                      <span className="market-card__source">
-                        {copy.source}
-                        <small>{item.sourceLabel}</small>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+              {/* 출처 */}
+              <div className="mb-card__foot">
+                <span>{item.cadence}</span>
+                {item.sourceUrl ? (
+                  <a href={item.sourceUrl} rel="noreferrer" target="_blank">
+                    {item.sourceLabel} ↗
+                  </a>
+                ) : (
+                  <span>{item.sourceLabel}</span>
+                )}
+              </div>
+
+            </article>
+          ))}
         </div>
+
       </div>
     </section>
   );
