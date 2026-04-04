@@ -1,1616 +1,1591 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
+import { DisplayConfig } from "@/components/display-config";
+import { EstimateAnalytics } from "@/components/estimate-analytics";
+import { SiteHeader } from "@/components/site-header";
 import {
-  EstimateAnalytics,
-  type EstimateHistorySnapshot,
-} from "@/components/estimate-analytics";
-import {
-  inspectReferenceWorkbook,
-  summarizeReferenceWorkbookInspection,
-  type ReferenceWorkbookInspection,
-} from "@/lib/excel-import";
-import {
-  DEFAULT_UNCERTAINTY_PROFILE,
-  DEFAULT_INPUT,
-  DEFAULT_REFERENCE_DATABASE,
-  DEFAULT_REFERENCE_PROJECT,
-  PROJECT_OPTIONS,
-  SITE_SURVEY_OPTIONS,
-  buildEstimateFingerprint,
-  buildKwBenchmark,
-  calculateEstimate,
+  CATEGORY_DESCRIPTIONS,
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  CATEGORY_SHEET_NAMES,
+  CATEGORY_SHORT_LABELS,
+  PERCENT_BASE_OPTIONS,
+  PRICING_MODE_OPTIONS,
+  calculateWorkbookSummary,
+  createEmptyItem,
+  createSeedWorkbook,
   formatEok,
+  formatKrw,
   formatPercent,
-  getEscalationBreakdown,
-  runMonteCarloEstimate,
-  type EstimateInput,
-  type EstimateUncertaintyProfile,
-  type LayoutPreview,
-  type MonteCarloSummary,
-  type ProjectType,
-  type ReferenceProject,
-  type RiskFinding,
+  getItemComputedAmount,
+  getPercentBaseLabel,
+  getSubcategoryOptions,
+  normalizeItem,
+  type EstimateCategory,
+  type EstimateItem,
+  type EstimateProjectMeta,
+  type EstimateWorkbook,
 } from "@/lib/estimator";
+import {
+  createWorkbookBlob,
+  importReferenceWorkbookFile,
+  importWorkbookFile,
+  type ReferenceCatalog,
+} from "@/lib/excel-import";
 
-const HISTORY_LIMIT = 20;
+type FilterCategory = EstimateCategory | "ALL";
+type StudioViewMode = "executive" | "field";
 
-const copy = {
-  refWorkbookDesc: "기준 워크북을 불러오고 목표 프로젝트 기준으로 바로 환산합니다.",
-  importing: "워크북을 불러오는 중...",
-  uploadWorkbook: "기준 워크북 업로드",
-  localParse: "Excel 파일을 브라우저에서 바로 읽습니다.",
-  uploadTrustTitle: "파일 처리 안내",
-  uploadTrustPrimary: "업로드된 파일은 브라우저에서만 처리되며 외부로 전송되지 않습니다.",
-  uploadTrustSecondary:
-    "브라우저 저장소와 외부 API를 사용하지 않으며, 업로드 결과는 현재 세션 메모리에만 유지됩니다.",
-  uploadTrustTertiary:
-    "내부 검토 시에는 확장 프로그램이 없는 시크릿 모드 사용을 권장합니다.",
-  uploadTrustQuaternary: "민감한 작업 후에는 브라우저를 완전히 종료하세요.",
-  eok: "억원",
-  basis: "기준으로",
-  resultTail: "를 반영한 결과입니다.",
-  preEsc: "연도 보정 전",
-  startYearBasis: "착공연도 기준",
-  coreBasis: "기준값 + 타입 + 도면 차이",
-  siteAdder: "현장 / 계통 가산",
-  drawingReflect: "도면 차이 반영",
-  importFailed: "워크북을 읽지 못했습니다. 항목명과 금액 열을 확인한 뒤 다시 시도하세요.",
-  refDb: "기준 데이터",
-  estimateTitle: "견적산출 화면",
-  project: "프로젝트",
-  projectProfile: "목표 프로젝트 조건",
-  projectName: "프로젝트명",
-  siteName: "현장명",
-  capacity: "용량 (MW)",
-  siteAddress: "현장 주소",
-  latitude: "위도",
-  longitude: "경도",
-  escalation: "물가상승",
-  escalationTitle: "가격연도와 상업 조건",
-  escalationNote: "물가상승 기준 메모",
-  priceYear: "가격 기준연도",
-  startYear: "착공연도",
-  serviceEsc: "서비스 물가상승 (%)",
-  procurementEsc: "조달 물가상승 (%)",
-  constructionEsc: "시공 물가상승 (%)",
-  margin: "목표 마진 (%)",
-  warrantyRate: "하자보수 (%)",
-  siteReview: "현장 검토",
-  siteReviewTitle: "부지와 유틸리티 범위",
-  drawingReview: "도면 검토",
-  drawingReviewTitle: "기준 도면과 목표 도면 차이",
-  referenceDrawing: "기준 도면",
-  targetDrawing: "목표 도면",
-  noFile: "선택된 파일 없음",
-  civilChange: "토목 변경 (%)",
-  electricalChange: "전기 변경 (%)",
-  mechanicalChange: "기계 변경 (%)",
-  controlChange: "제어 / 계장 변경 (%)",
-  quote: "견적 결과",
-  riskGrade: "리스크 등급",
-  referenceDelta: "기준 대비 차이",
-  securityStatus: "보안 상태",
-  isolatedMode: "외부 호출 차단",
-  scaledReference: "용량 환산 기준금액",
-  escalatedReference: "물가상승 반영 기준금액",
-  coreSubtotal: "핵심 EPC 소계",
-  siteAdditions: "현장 가산",
-  warranty: "하자보수",
-  drawingAdders: "도면 차이 가산",
-  warrantyBasis: "공사비 기준 하자보수율 적용",
-  categorySplit: "항목 구분",
-  categorySplitTitle: "S / P / C 기준 물가상승 반영 금액",
-  riskEnvelope: "리스크 범위",
-  riskEnvelopeTitle: "시나리오 총액",
-  bidStrategy: "입찰 전략",
-  bidStrategyTitle: "마진 전략 비교",
-  referenceComparison: "기준 비교",
-  referenceComparisonTitle: "선택한 기준 프로젝트와 비교",
-  referenceOriginal: "기준 원본",
-  referenceEscalated: "기준 보정 후",
-  currentQuote: "현재 견적",
-  delta: "차이율",
-  referenceNote: "기준 메모",
-  riskReview: "리스크 검토",
-  riskReviewTitle: "상업 및 기술 리스크",
-  noRisk: "현재 입력값 기준으로 주요 리스크 신호는 없습니다.",
-  impact: "예상 영향",
-  estimateBasis: "산출 근거",
-  estimateBasisTitle: "현재 금액이 나온 이유",
-  securityPanel: "보안 처리",
-  securityPanelTitle: "업로드와 계산은 현재 세션 내부에서만 처리",
-  securityStorage: "브라우저 저장소 미사용",
-  securityStorageDesc: "localStorage, sessionStorage, indexedDB에 업로드 결과를 남기지 않습니다.",
-  securityNetwork: "외부 전송 차단",
-  securityNetworkDesc: "견적산출 페이지에서는 외부 지도, 시세, API 호출 없이 로컬 파싱과 계산만 수행합니다.",
-  securityReset: "새로고침 시 초기화",
-  securityResetDesc: "새로고침하거나 브라우저를 다시 열면 업로드 결과와 계산 이력이 초기화됩니다.",
-  siteSummary: "현장 입력 요약",
-  siteSummaryTitle: "현장 정보는 입력값으로만 유지",
-  siteSummaryDesc: "현장명, 주소, 좌표는 견적 검토용 입력값이며 외부 지도로 전송하지 않습니다.",
-  noCoordinates: "좌표 미입력",
-  virtualLayout: "가상 배치",
-  virtualLayoutTitle: "예상 플랜트 배치",
-  estimatedLandUse: "예상 필요 면적",
-  layoutNote: "배치 메모",
-  breakdown: "세부 내역",
-  breakdownTitle: "기준, 도면, 현장 가산 항목",
-  item: "항목",
-  kind: "구분",
-  category: "카테고리",
-  base: "기준금액",
-  escalated: "반영금액",
-  basisCol: "근거",
-  note: "비고",
-  uploadedWorkbook: "업로드한 워크북",
-  builtInReference: "기본 기준 프로젝트",
-  remove: "삭제",
-  defaultTag: "기본값",
-  reviewImport: "업로드 검수",
-  reviewImportTitle: "참조 워크북 확인 후 반영",
-  reviewImportDesc:
-    "엑셀 파싱 결과를 먼저 확인한 뒤 기준 데이터로 추가합니다. 이름, 연도, 용량은 여기서 바로 수정할 수 있습니다.",
-  parsedTotal: "파싱 총액",
-  parsedItems: "파싱 항목 수",
-  parsedSheets: "읽은 시트 수",
-  reviewName: "기준 프로젝트명",
-  reviewYear: "기준연도",
-  reviewCapacity: "기준 용량 (MW)",
-  categorySubtotal: "카테고리 소계",
-  warnings: "검토 메모",
-  noWarnings: "자동 검토 경고 없음",
-  removePending: "제외",
-  reviewItems: "항목 검수",
-  reviewItemsDesc: "항목명, 카테고리, 금액을 수정하거나 제외할 수 있습니다.",
-  reviewAmount: "금액 (억원)",
-  reviewCategoryCode: "카테고리",
-  reviewCode: "코드",
-  reviewItemNote: "비고",
-  cancelReview: "취소",
-  confirmReview: "검수 후 반영",
-  importReady: "반영 대기",
-  escalationSnapshot: "복리 반영 요약",
-  escalationApplied: "연도차 복리 적용 결과",
-  escalationNone: "기준연도와 착공연도가 같아 물가상승이 추가되지 않습니다.",
-  escalationFormula: "계산식",
+type ImportSnapshot = {
+  fileName: string;
+  importedCount: number;
+  warnings: string[];
+  sheetCounts: Record<string, number>;
 };
 
-function clampNumber(value: number, min: number, max: number) {
-  if (Number.isNaN(value)) return min;
-  return Math.min(max, Math.max(min, value));
+type PendingReferenceItem = {
+  id: string;
+  include: boolean;
+  category: EstimateCategory;
+  subcategory: string;
+  name: string;
+  amount: number;
+  unit: string;
+  referenceCode: string;
+  referenceItemId: string;
+  referenceLabel: string;
+  pathLabel: string;
+  rowNumber: number;
+};
+
+type PendingReferenceReview = {
+  fileName: string;
+  projectName: string;
+  referenceYear: number | null;
+  capacityMw: number | null;
+  items: PendingReferenceItem[];
+};
+
+type PendingReferenceSummary = {
+  includedCount: number;
+  totalAmount: number;
+  categoryTotals: Record<EstimateCategory, number>;
+  warnings: string[];
+};
+
+const referenceAmountUnit = 100_000_000;
+
+function buildFileStem(fileName: string) {
+  return fileName.replace(/\.[^.]+$/, "");
 }
 
-function severityClass(severity: RiskFinding["severity"]) {
-  if (severity === "HIGH") return "risk-chip risk-chip--high";
-  if (severity === "MEDIUM") return "risk-chip risk-chip--medium";
-  return "risk-chip risk-chip--low";
+function parseOptionalNumber(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
-function gradeClass(grade: "LOW" | "MEDIUM" | "HIGH") {
-  if (grade === "HIGH") return "result-grade result-grade--high";
-  if (grade === "MEDIUM") return "result-grade result-grade--medium";
-  return "result-grade result-grade--low";
+function buildPendingReferenceReview(
+  fileName: string,
+  catalog: ReferenceCatalog,
+): PendingReferenceReview {
+  return {
+    fileName,
+    projectName: catalog.meta.referenceTitle || buildFileStem(fileName),
+    referenceYear: catalog.meta.projectYear,
+    capacityMw: catalog.meta.capacityMw,
+    items: catalog.items.map((item) => ({
+      id: item.id,
+      include: true,
+      category: item.epcCategory,
+      subcategory:
+        item.subName || item.majorName || getSubcategoryOptions(item.epcCategory)[0] || "",
+      name: item.name,
+      amount: item.referenceAmount,
+      unit: item.unit || "식",
+      referenceCode: item.referenceCode,
+      referenceItemId: item.id,
+      referenceLabel: item.pathLabel,
+      pathLabel: item.pathLabel,
+      rowNumber: item.rowNumber,
+    })),
+  };
 }
 
-function LayoutCanvas({ layout }: { layout: LayoutPreview }) {
-  const scale = 92;
-  const maxX = Math.max(...layout.blocks.map((block) => block.x + block.w), 0) + 0.5;
-  const maxY = Math.max(...layout.blocks.map((block) => block.y + block.h), 0) + 0.5;
-  const width = Math.max(640, maxX * scale);
-  const height = Math.max(320, maxY * scale);
+function summarizePendingReference(review: PendingReferenceReview): PendingReferenceSummary {
+  const categoryTotals: Record<EstimateCategory, number> = {
+    E: 0,
+    P: 0,
+    C: 0,
+    ETC: 0,
+  };
 
-  return (
-    <svg
-      className="layout-canvas"
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-label="연료전지 플랜트 가상 배치 미리보기"
-    >
-      <defs>
-        <pattern id="layout-grid" width={scale} height={scale} patternUnits="userSpaceOnUse">
-          <path d={`M ${scale} 0 L 0 0 0 ${scale}`} fill="none" stroke="rgba(17,17,17,0.07)" />
-        </pattern>
-      </defs>
-      <rect width={width} height={height} fill="url(#layout-grid)" rx="28" />
-      {layout.blocks.map((block) => {
-        const x = block.x * scale;
-        const y = block.y * scale;
-        const w = block.w * scale;
-        const h = block.h * scale;
-        const className =
-          block.kind === "module"
-            ? "layout-canvas__block layout-canvas__block--module"
-            : block.kind === "aux"
-              ? "layout-canvas__block layout-canvas__block--aux"
-              : "layout-canvas__block layout-canvas__block--grid";
+  const includedItems = review.items.filter((item) => item.include);
+  for (const item of includedItems) {
+    categoryTotals[item.category] += item.amount;
+  }
 
-        return (
-          <g key={block.id}>
-            <rect className={className} x={x} y={y} width={w} height={h} rx="18" />
-            <text
-              x={x + w / 2}
-              y={y + h / 2}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              className="layout-canvas__label"
-            >
-              {block.label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
+  const totalAmount = includedItems.reduce((sum, item) => sum + item.amount, 0);
+  const warnings: string[] = [];
+
+  if (!review.referenceYear) {
+    warnings.push("기준연도를 찾지 못해 적용 전에 연도를 확인해 주세요.");
+  }
+
+  if (!review.capacityMw) {
+    warnings.push("기준용량을 찾지 못해 용량 비교는 별도 확인이 필요합니다.");
+  }
+
+  if (includedItems.length < 5) {
+    warnings.push("검수 대상 항목 수가 적습니다. 합계행만 읽힌 것은 아닌지 확인해 주세요.");
+  }
+
+  if (totalAmount > 0 && totalAmount < 30 * referenceAmountUnit) {
+    warnings.push("파싱 총액이 30억원 미만입니다. 단위나 금액 열을 다시 검토해 주세요.");
+  }
+
+  if (totalAmount > 2_000 * referenceAmountUnit) {
+    warnings.push("파싱 총액이 2,000억원을 초과합니다. 원 단위가 중복 환산되지 않았는지 확인해 주세요.");
+  }
+
+  const directCategories: EstimateCategory[] = ["E", "P", "C"];
+  const dominant = directCategories
+    .map((category) => ({
+      category,
+      share: totalAmount > 0 ? categoryTotals[category] / totalAmount : 0,
+    }))
+    .sort((left, right) => right.share - left.share)[0];
+
+  if (dominant && dominant.share >= 0.85) {
+    warnings.push(
+      `${CATEGORY_SHORT_LABELS[dominant.category]} 비중이 85% 이상입니다. 카테고리 분류가 맞는지 확인해 주세요.`,
+    );
+  }
+
+  const emptyCategories = directCategories.filter((category) => categoryTotals[category] === 0);
+  if (emptyCategories.length > 0) {
+    warnings.push(
+      `${emptyCategories.map((category) => CATEGORY_SHORT_LABELS[category]).join(", ")} 항목이 없습니다.`,
+    );
+  }
+
+  return {
+    includedCount: includedItems.length,
+    totalAmount,
+    categoryTotals,
+    warnings,
+  };
 }
 
 export function EstimateStudio() {
-  const [input, setInput] = useState<EstimateInput>(DEFAULT_INPUT);
-  const [uploadedReferences, setUploadedReferences] = useState<ReferenceProject[]>([]);
-  const [historySnapshots, setHistorySnapshots] = useState<EstimateHistorySnapshot[]>([]);
-  const [pendingImports, setPendingImports] = useState<ReferenceWorkbookInspection[]>([]);
-  const [selectedReferenceId, setSelectedReferenceId] = useState(
-    DEFAULT_REFERENCE_PROJECT.id,
-  );
-  const [isInputCollapsed, setIsInputCollapsed] = useState(false);
-  const [viewMode, setViewMode] = useState<"internal" | "buyer">("internal");
-  const [isImporting, setIsImporting] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [uncertaintyProfile, setUncertaintyProfile] = useState<EstimateUncertaintyProfile>(
-    DEFAULT_UNCERTAINTY_PROFILE,
-  );
-  const [monteCarlo, setMonteCarlo] = useState<MonteCarloSummary>(() =>
-    runMonteCarloEstimate(
-      calculateEstimate(DEFAULT_INPUT, DEFAULT_REFERENCE_PROJECT),
-      DEFAULT_INPUT,
-      DEFAULT_REFERENCE_PROJECT,
-      10_000,
-      DEFAULT_UNCERTAINTY_PROFILE,
-    ),
-  );
+  const [workbook, setWorkbook] = useState<EstimateWorkbook>(() => createSeedWorkbook());
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<StudioViewMode>("executive");
+  const [activeCategory, setActiveCategory] = useState<FilterCategory>("ALL");
+  const [activeSubcategory, setActiveSubcategory] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [importSnapshot, setImportSnapshot] = useState<ImportSnapshot | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingReference, setPendingReference] = useState<PendingReferenceReview | null>(null);
+  const [isWorkbookImporting, setIsWorkbookImporting] = useState(false);
+  const [isReferenceImporting, setIsReferenceImporting] = useState(false);
+  const [isTransitionPending, startTransition] = useTransition();
+  const workbookImportRef = useRef<HTMLInputElement | null>(null);
+  const referenceImportRef = useRef<HTMLInputElement | null>(null);
+  const deferredKeyword = useDeferredValue(searchKeyword.trim().toLowerCase());
 
-  const referenceProjects = [...DEFAULT_REFERENCE_DATABASE, ...uploadedReferences];
-  const selectedReference =
-    referenceProjects.find((project) => project.id === selectedReferenceId) ??
-    DEFAULT_REFERENCE_PROJECT;
-  const result = calculateEstimate(input, selectedReference);
-  const benchmark = buildKwBenchmark(result, input);
-  const estimateSignature = buildEstimateFingerprint(input, selectedReference);
-  const currentHistoryEntry: EstimateHistorySnapshot = {
-    id: "current",
-    signature: estimateSignature,
-    savedAt: new Date().toISOString(),
-    projectName: input.projectName,
-    referenceProjectName: selectedReference.name,
-    capacityMw: input.capacityMw,
-    baseYear: input.baseYear,
-    startYear: input.startYear,
-    riskGrade: result.riskGrade,
-    escalatedReferenceTotalEok: result.escalatedReferenceTotalEok,
-    projectAddonSubtotal: result.projectAddonSubtotal,
-    drawingSubtotal: result.drawingSubtotal,
-    siteSubtotal: result.siteSubtotal,
-    marginEffect: result.marginEffect,
-    warranty: result.warranty,
-    constructionQuote: result.constructionQuote,
-    grandTotal: result.grandTotal,
+  const summary = calculateWorkbookSummary(workbook);
+  const selectedItem = workbook.items.find((item) => item.id === selectedItemId) ?? null;
+  const pendingReferenceSummary = pendingReference
+    ? summarizePendingReference(pendingReference)
+    : null;
+
+  const matchesFilter = (item: EstimateItem) => {
+    if (activeCategory !== "ALL" && item.category !== activeCategory) return false;
+    if (activeSubcategory && item.subcategory !== activeSubcategory) return false;
+
+    if (!deferredKeyword) return true;
+
+    const target = [
+      item.code,
+      item.name,
+      item.spec,
+      item.note,
+      item.referenceCode,
+      item.referenceLabel,
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return target.includes(deferredKeyword);
   };
-  const escalationRows = getEscalationBreakdown(
-    input.baseYear,
-    input.startYear,
-    input.inflation,
-  );
-  const isBuyerMode = viewMode === "buyer";
-  const hasCoordinates =
-    Number.isFinite(input.latitude) &&
-    Number.isFinite(input.longitude) &&
-    (Math.abs(input.latitude) > 0.0001 || Math.abs(input.longitude) > 0.0001);
-  const selectedProjectOption =
-    PROJECT_OPTIONS.find((option) => option.id === input.projectType) ?? PROJECT_OPTIONS[0];
-  const summaryCards = [
+
+  const visibleItems = workbook.items.filter(matchesFilter);
+  const visibleTotal = summary.resolvedItems
+    .filter(matchesFilter)
+    .reduce((sum, item) => sum + item.amount, 0);
+  const referencedCount = workbook.items.filter((item) => item.referenceItemId).length;
+  const topItem = summary.topItems[0] ?? null;
+  const dominantCategory =
+    summary.categorySummaries
+      .filter((category) => category.count > 0)
+      .sort((left, right) => right.total - left.total)[0] ?? null;
+  const activeWarningCount =
+    (importSnapshot?.warnings.length ?? 0) + (pendingReferenceSummary?.warnings.length ?? 0);
+  const activeFilterLabel =
+    activeCategory === "ALL"
+      ? "전체 항목"
+      : activeSubcategory
+        ? `${CATEGORY_SHORT_LABELS[activeCategory]} / ${activeSubcategory}`
+        : CATEGORY_LABELS[activeCategory];
+  const activeFilterDescription =
+    activeCategory === "ALL"
+      ? "전체 카테고리와 하위 항목을 한 번에 검토합니다."
+      : CATEGORY_DESCRIPTIONS[activeCategory];
+  const editorSubcategoryOptions = selectedItem
+    ? getSubcategoryOptions(selectedItem.category)
+    : [];
+  const editorCategory =
+    activeCategory === "ALL" ? selectedItem?.category ?? "E" : activeCategory;
+  const isBusy = isWorkbookImporting || isReferenceImporting || isTransitionPending;
+  const viewModes: Array<{
+    value: StudioViewMode;
+    label: string;
+    description: string;
+  }> = [
     {
-      label: copy.scaledReference,
-      value: formatEok(result.scaledReferenceTotalEok),
-      sub: copy.preEsc,
+      value: "executive",
+      label: "임원 보고형",
+      description: "핵심 지표, 결정 포인트, 검수 상태를 먼저 보여줍니다.",
     },
     {
-      label: copy.escalatedReference,
-      value: formatEok(result.escalatedReferenceTotalEok),
-      sub: copy.startYearBasis,
-    },
-    {
-      label: copy.coreSubtotal,
-      value: formatEok(result.costSubtotal),
-      sub: copy.coreBasis,
-    },
-    {
-      label: copy.siteAdditions,
-      value: formatEok(result.siteSubtotal),
-      sub: copy.siteAdder,
-    },
-    {
-      label: copy.warranty,
-      value: formatEok(result.warranty),
-      sub: `${formatPercent(input.warrantyRate)} ${copy.warrantyBasis}`,
-    },
-    {
-      label: copy.drawingAdders,
-      value: formatEok(result.drawingSubtotal),
-      sub: copy.drawingReflect,
+      value: "field",
+      label: "현장 견적 실무형",
+      description: "분류 트리, 내역표, 편집 패널을 중심으로 바로 작업합니다.",
     },
   ];
-  const visibleSummaryCards = isBuyerMode ? summaryCards.slice(1, 5) : summaryCards;
-  const buyerHighlights = [
-    `${selectedProjectOption.label} 기준으로 ${input.capacityMw.toFixed(1)}MW 규모를 검토했습니다.`,
-    `기준 프로젝트 ${selectedReference.name} (${selectedReference.referenceCapacityMw.toFixed(1)}MW / ${selectedReference.referenceYear})를 참조했습니다.`,
-    `${input.baseYear}년 기준 금액을 ${input.startYear}년 착공 조건으로 보정했습니다.`,
-    `현장 가산 ${formatEok(result.siteSubtotal)} 및 도면 차이 ${formatEok(result.drawingSubtotal)}를 반영했습니다.`,
+  const heroContent =
+    viewMode === "executive"
+      ? {
+          eyebrow: "임원 보고형",
+          title: "총 견적과 결정 포인트를 빠르게 공유하는 SOFC EPC 보고 화면",
+          body:
+            "최종 금액, 카테고리 비중, 최대 항목, 검수 상태를 먼저 보여주고 세부 내역은 뒤에서 뒷받침하는 구성을 제공합니다.",
+          guides: [
+            "의사결정자에게 필요한 숫자를 먼저 배치합니다.",
+            "검수 여부와 참조 연결 상태를 같이 보여 신뢰도를 높입니다.",
+            "필요하면 현장 견적 실무형으로 바로 전환해 세부 편집을 이어갈 수 있습니다.",
+          ],
+        }
+      : {
+          eyebrow: "현장 견적 실무형",
+          title: "분류 트리와 편집 패널을 동시에 보는 SOFC EPC 견적 작업 화면",
+          body:
+            "카테고리별 항목을 빠르게 추가하고, 수량·단가·비율을 수정하면서 계산 결과를 즉시 확인하는 실무 중심 구성을 제공합니다.",
+          guides: [
+            "분류 트리, 내역표, 편집 패널을 한 화면에 유지합니다.",
+            "참조 워크북 검수 후 반영 흐름을 끊지 않고 이어갑니다.",
+            "같은 계산 엔진을 그대로 사용해 보고형 숫자와 실무형 숫자가 항상 일치합니다.",
+          ],
+        };
+  const executiveSummaryCards = [
+    {
+      label: "총 견적",
+      value: formatEok(summary.grandTotal),
+      sub: `직접 EPC ${formatEok(summary.directTotal)} + ETC ${formatEok(summary.etcTotal)}`,
+      strong: true,
+    },
+    {
+      label: "최대 카테고리",
+      value: dominantCategory ? CATEGORY_SHORT_LABELS[dominantCategory.category] : "대기",
+      sub: dominantCategory
+        ? `${formatEok(dominantCategory.total)} / ${formatPercent(dominantCategory.shareOfGrandTotal * 100)}`
+        : "항목 입력 후 자동 계산",
+    },
+    {
+      label: "참조 추적",
+      value: `${referencedCount}개`,
+      sub: pendingReference
+        ? `${pendingReferenceSummary?.includedCount ?? 0}개 항목 검수 대기`
+        : "검수 후 반영된 기준 항목 수",
+    },
+    {
+      label: "검수 상태",
+      value:
+        pendingReference
+          ? "검수 진행 중"
+          : activeWarningCount > 0
+            ? `검토 메모 ${activeWarningCount}건`
+            : "검수 이상 없음",
+      sub: importSnapshot
+        ? `${importSnapshot.fileName} 기준 최근 불러오기 완료`
+        : "참조 워크북 업로드 시 검수 흐름 시작",
+    },
   ];
-  const buyerConditions = [
-    `현장: ${input.siteName || input.projectName}`,
-    `주소: ${input.siteAddress}`,
-    `목표 마진: ${formatPercent(input.marginRate)}`,
-    `하자보수: ${formatPercent(input.warrantyRate)}`,
+  const executiveMessages = [
+    `${workbook.meta.projectName || "프로젝트명 미입력"} / ${workbook.meta.clientName || "발주처 미입력"}`,
+    `${workbook.meta.baseYear}년 기준, ${workbook.meta.startYear}년 착수 조건`,
+    dominantCategory
+      ? `${CATEGORY_LABELS[dominantCategory.category]} 비중이 현재 가장 큽니다.`
+      : "카테고리 비중은 항목 입력 후 자동 계산됩니다.",
+    topItem ? `최대 금액 항목은 ${topItem.name}입니다.` : "최대 금액 항목은 아직 없습니다.",
   ];
-  const buyerFindings = result.findings.slice(0, 3);
-  const buyerBasis = result.basis.slice(0, 4);
-  const previousHistoryEntry =
-    historySnapshots[0]?.signature === estimateSignature
-      ? historySnapshots[1] ?? null
-      : historySnapshots[0] ?? null;
+  const executiveReadiness = [
+    {
+      label: "검수 상태",
+      value:
+        pendingReference
+          ? "검수 모달 진행 중"
+          : activeWarningCount > 0
+            ? `검토 메모 ${activeWarningCount}건`
+            : "반영 가능한 상태",
+    },
+    {
+      label: "참조 연결",
+      value: `${referencedCount}개 항목`,
+    },
+    {
+      label: "프로젝트 번호",
+      value: workbook.meta.estimateNo || "미입력",
+    },
+    {
+      label: "작성 책임",
+      value: workbook.meta.preparedBy || "미입력",
+    },
+  ];
 
   useEffect(() => {
-    setMonteCarlo(
-      runMonteCarloEstimate(result, input, selectedReference, 10_000, uncertaintyProfile),
-    );
-  }, [estimateSignature, uncertaintyProfile]);
-
-  useEffect(() => {
-    const entry: EstimateHistorySnapshot = {
-      id: `${Date.now()}-${Math.round(result.grandTotal * 100)}`,
-      signature: estimateSignature,
-      savedAt: new Date().toISOString(),
-      projectName: input.projectName,
-      referenceProjectName: selectedReference.name,
-      capacityMw: input.capacityMw,
-      baseYear: input.baseYear,
-      startYear: input.startYear,
-      escalatedReferenceTotalEok: result.escalatedReferenceTotalEok,
-      projectAddonSubtotal: result.projectAddonSubtotal,
-      drawingSubtotal: result.drawingSubtotal,
-      siteSubtotal: result.siteSubtotal,
-      marginEffect: result.marginEffect,
-      warranty: result.warranty,
-      grandTotal: result.grandTotal,
-      constructionQuote: result.constructionQuote,
-      riskGrade: result.riskGrade,
-    };
-
-    setHistorySnapshots((current) => {
-      if (current[0]?.signature === estimateSignature) {
-        return current;
-      }
-
-      const next = [entry, ...current.filter((item) => item.signature !== estimateSignature)].slice(
-        0,
-        HISTORY_LIMIT,
-      );
-      return next;
-    });
-  }, [
-    estimateSignature,
-    input.baseYear,
-    input.capacityMw,
-    input.projectName,
-    input.startYear,
-    result.constructionQuote,
-    result.drawingSubtotal,
-    result.escalatedReferenceTotalEok,
-    result.grandTotal,
-    result.marginEffect,
-    result.projectAddonSubtotal,
-    result.riskGrade,
-    result.siteSubtotal,
-    result.warranty,
-    selectedReference.name,
-  ]);
-
-  const setField = <K extends keyof EstimateInput,>(key: K, value: EstimateInput[K]) => {
-    setInput((current) => ({ ...current, [key]: value }));
-  };
-
-  const setSiteSurvey = (id: string, quantity: number) => {
-    setInput((current) => ({
-      ...current,
-      siteSurvey: { ...current.siteSurvey, [id]: Math.max(0, quantity) },
-    }));
-  };
-
-  const setInflationField = <K extends keyof EstimateInput["inflation"],>(
-    key: K,
-    value: EstimateInput["inflation"][K],
-  ) => {
-    setInput((current) => ({
-      ...current,
-      inflation: { ...current.inflation, [key]: value },
-    }));
-  };
-
-  const setDrawingField = <K extends keyof EstimateInput["drawingChange"],>(
-    key: K,
-    value: EstimateInput["drawingChange"][K],
-  ) => {
-    setInput((current) => ({
-      ...current,
-      drawingChange: { ...current.drawingChange, [key]: value },
-    }));
-  };
-
-  const selectReference = (projectId: string) => {
-    const project =
-      referenceProjects.find((item) => item.id === projectId) ?? DEFAULT_REFERENCE_PROJECT;
-    setSelectedReferenceId(projectId);
-    setInput((current) => ({ ...current, baseYear: project.referenceYear }));
-  };
-
-  const removeReference = (projectId: string) => {
-    setUploadedReferences((current) => current.filter((project) => project.id !== projectId));
-    if (selectedReferenceId === projectId) {
-      setSelectedReferenceId(DEFAULT_REFERENCE_PROJECT.id);
-      setInput((current) => ({ ...current, baseYear: DEFAULT_REFERENCE_PROJECT.referenceYear }));
+    if (!selectedItemId && workbook.items[0]) {
+      setSelectedItemId(workbook.items[0].id);
+      return;
     }
+
+    if (selectedItemId && !workbook.items.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(workbook.items[0]?.id ?? null);
+    }
+  }, [selectedItemId, workbook.items]);
+
+  const updateMetaField = <K extends keyof EstimateProjectMeta>(
+    key: K,
+    value: EstimateProjectMeta[K],
+  ) => {
+    setWorkbook((current) => ({
+      ...current,
+      meta: {
+        ...current.meta,
+        [key]: value,
+      },
+    }));
   };
 
-  const updatePendingProjectField = (
-    projectId: string,
-    key: "name" | "referenceYear" | "referenceCapacityMw",
-    value: string | number,
+  const updateItem = (
+    itemId: string,
+    updater: (item: EstimateItem) => Partial<EstimateItem>,
   ) => {
-    setPendingImports((current) =>
-      current.map((inspection) =>
-        inspection.project.id === projectId
-          ? summarizeReferenceWorkbookInspection(
-              {
-                ...inspection.project,
-                [key]: value,
-              },
-              {
-                fileName: inspection.fileName,
-                sheetCount: inspection.sheetCount,
-              },
-            )
-          : inspection,
+    setWorkbook((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.id === itemId ? normalizeItem({ ...item, ...updater(item) }, current.items) : item,
       ),
-    );
-  };
-
-  const updatePendingItemField = (
-    projectId: string,
-    itemCode: string,
-    key: "name" | "category" | "amountEok",
-    value: string | number,
-  ) => {
-    setPendingImports((current) =>
-      current.map((inspection) => {
-        if (inspection.project.id !== projectId) return inspection;
-
-        return summarizeReferenceWorkbookInspection(
-          {
-            ...inspection.project,
-            items: inspection.project.items.map((item) =>
-              item.code === itemCode
-                ? {
-                    ...item,
-                    [key]: value,
-                  }
-                : item,
-            ),
-          },
-          {
-            fileName: inspection.fileName,
-            sheetCount: inspection.sheetCount,
-          },
-        );
-      }),
-    );
-  };
-
-  const removePendingItem = (projectId: string, itemCode: string) => {
-    setPendingImports((current) =>
-      current.flatMap((inspection) => {
-        if (inspection.project.id !== projectId) return inspection;
-
-        const nextItems = inspection.project.items.filter((item) => item.code !== itemCode);
-        if (nextItems.length === 0) return [];
-
-        return summarizeReferenceWorkbookInspection(
-          {
-            ...inspection.project,
-            items: nextItems,
-          },
-          {
-            fileName: inspection.fileName,
-            sheetCount: inspection.sheetCount,
-          },
-        );
-      }),
-    );
-  };
-
-  const removePendingImport = (projectId: string) => {
-    setPendingImports((current) =>
-      current.filter((inspection) => inspection.project.id !== projectId),
-    );
-  };
-
-  const cancelPendingImports = () => {
-    setPendingImports([]);
-  };
-
-  const clearHistorySnapshots = () => {
-    setHistorySnapshots([]);
-  };
-
-  const jumpToInputSection = (sectionId: string) => {
-    if (isInputCollapsed) {
-      setIsInputCollapsed(false);
-    }
-
-    window.setTimeout(() => {
-      const target = document.getElementById(sectionId);
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, isInputCollapsed ? 180 : 20);
-  };
-
-  const setUncertaintyField = (key: keyof EstimateUncertaintyProfile, value: number) => {
-    setUncertaintyProfile((current) => ({
-      ...current,
-      [key]: clampNumber(value, 0, 50),
     }));
   };
 
-  const resetUncertaintyProfile = () => {
-    setUncertaintyProfile(DEFAULT_UNCERTAINTY_PROFILE);
+  const addItem = (category: EstimateCategory = editorCategory) => {
+    let nextId: string | null = null;
+
+    setWorkbook((current) => {
+      const nextItem = createEmptyItem(category, current.items);
+      nextId = nextItem.id;
+
+      return {
+        ...current,
+        items: [...current.items, nextItem],
+      };
+    });
+
+    setActiveCategory(category);
+    setActiveSubcategory("");
+    setSelectedItemId(nextId);
+    setNotice(`${CATEGORY_SHORT_LABELS[category]} 항목 편집을 시작했습니다.`);
+    setError(null);
   };
 
-  const confirmPendingImports = () => {
-    if (pendingImports.length === 0) return;
+  const duplicateSelectedItem = () => {
+    if (!selectedItem) return;
 
-    const importedProjects = pendingImports.map((inspection) => inspection.project);
-    setUploadedReferences((current) => [...importedProjects, ...current]);
-    setSelectedReferenceId(importedProjects[0].id);
-    setInput((current) => ({ ...current, baseYear: importedProjects[0].referenceYear }));
-    setPendingImports([]);
+    let nextId: string | null = null;
+
+    setWorkbook((current) => {
+      const duplicated = normalizeItem(
+        {
+          ...selectedItem,
+          id: "",
+          code: "",
+          name: selectedItem.name ? `${selectedItem.name} 복사본` : "",
+        },
+        current.items,
+      );
+
+      nextId = duplicated.id;
+
+      return {
+        ...current,
+        items: [...current.items, duplicated],
+      };
+    });
+
+    setSelectedItemId(nextId);
+    setNotice("선택 항목을 복사했습니다.");
+    setError(null);
   };
 
-  const handleReferenceImport = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    if (files.length === 0) return;
+  const removeSelectedItem = () => {
+    if (!selectedItem) return;
 
-    setImportError(null);
-    setIsImporting(true);
+    setWorkbook((current) => ({
+      ...current,
+      items: current.items.filter((item) => item.id !== selectedItem.id),
+    }));
+
+    setNotice(`${selectedItem.code} 항목을 삭제했습니다.`);
+    setError(null);
+  };
+
+  const handleDownloadWorkbook = () => {
+    const blob = createWorkbookBlob(workbook);
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${workbook.meta.projectName || "estimate"}-${workbook.meta.estimateNo || "draft"}.xlsx`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setNotice("현재 견적서를 엑셀로 저장했습니다.");
+    setError(null);
+  };
+
+  const handleWorkbookImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setIsWorkbookImporting(true);
+    setNotice(null);
+    setError(null);
 
     try {
-      const inspections: ReferenceWorkbookInspection[] = [];
-      const failures: string[] = [];
+      const result = await importWorkbookFile(file);
 
-      for (const file of files) {
-        try {
-          inspections.push(await inspectReferenceWorkbook(file));
-        } catch (error) {
-          failures.push(
-            `${file.name}: ${error instanceof Error ? error.message : copy.importFailed}`,
-          );
-        }
-      }
+      startTransition(() => {
+        setWorkbook(result.workbook);
+        setSelectedItemId(result.workbook.items[0]?.id ?? null);
+        setActiveCategory("ALL");
+        setActiveSubcategory("");
+        setImportSnapshot({
+          fileName: file.name,
+          importedCount: result.importedCount,
+          warnings: result.warnings,
+          sheetCounts: result.sheetCounts,
+        });
+      });
 
-      if (inspections.length > 0) {
-        setPendingImports(inspections);
-      }
-
-      if (failures.length > 0) {
-        setImportError(failures.join(" / "));
-      }
+      setNotice(`${file.name}에서 ${result.importedCount}개 항목을 불러왔습니다.`);
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : "엑셀 파일을 읽는 중 오류가 발생했습니다.";
+      setError(message);
     } finally {
-      setIsImporting(false);
-      event.target.value = "";
+      setIsWorkbookImporting(false);
     }
   };
 
+  const handleReferenceImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setIsReferenceImporting(true);
+    setNotice(null);
+    setError(null);
+
+    try {
+      const catalog = await importReferenceWorkbookFile(file);
+      setPendingReference(buildPendingReferenceReview(file.name, catalog));
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : "참조 워크북을 읽는 중 오류가 발생했습니다.";
+      setError(message);
+    } finally {
+      setIsReferenceImporting(false);
+    }
+  };
+
+  const confirmPendingReference = () => {
+    if (!pendingReference) return;
+
+    const includedItems = pendingReference.items.filter((item) => item.include);
+    if (includedItems.length === 0) {
+      setError("반영할 참조 항목이 없습니다. 최소 1개 이상 선택해 주세요.");
+      return;
+    }
+
+    let firstCreatedId: string | null = null;
+
+    setWorkbook((current) => {
+      const appendedItems: EstimateItem[] = [];
+      const referenceNote = [
+        pendingReference.projectName,
+        pendingReference.referenceYear ? `${pendingReference.referenceYear}년` : null,
+        pendingReference.capacityMw ? `${pendingReference.capacityMw}MW` : null,
+      ]
+        .filter(Boolean)
+        .join(" / ");
+
+      for (const item of includedItems) {
+        const nextItem = normalizeItem(
+          {
+            id: "",
+            code: "",
+            category: item.category,
+            subcategory:
+              item.subcategory || getSubcategoryOptions(item.category)[0] || item.category,
+            name: item.name,
+            spec: item.pathLabel,
+            unit: item.unit,
+            pricingMode: "MANUAL",
+            manualAmount: item.amount,
+            note: [referenceNote, item.pathLabel].filter(Boolean).join(" · "),
+            referenceItemId: item.referenceItemId,
+            referenceCode: item.referenceCode,
+            referenceLabel: item.referenceLabel,
+            referenceAmount: item.amount,
+          },
+          [...current.items, ...appendedItems],
+        );
+
+        firstCreatedId ??= nextItem.id;
+        appendedItems.push(nextItem);
+      }
+
+      const nextNotes = [
+        current.meta.notes,
+        `${pendingReference.projectName} 기준 항목을 검수 후 반영`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      return {
+        ...current,
+        meta: {
+          ...current.meta,
+          baseYear:
+            current.items.length === 0 && pendingReference.referenceYear
+              ? pendingReference.referenceYear
+              : current.meta.baseYear,
+          notes: nextNotes,
+        },
+        items: [...current.items, ...appendedItems],
+      };
+    });
+
+    setPendingReference(null);
+    setSelectedItemId(firstCreatedId);
+    setActiveCategory("ALL");
+    setActiveSubcategory("");
+    setNotice(`${includedItems.length}개 참조 항목을 검수 후 반영했습니다.`);
+    setError(null);
+  };
+
+  const summaryCards = [
+    {
+      label: "총 견적",
+      value: formatEok(summary.grandTotal),
+      sub: `직접 EPC ${formatEok(summary.directTotal)} + ETC ${formatEok(summary.etcTotal)}`,
+      strong: true,
+    },
+    {
+      label: "직접 EPC",
+      value: formatEok(summary.directTotal),
+      sub: `E ${formatEok(summary.categoryTotals.E)} / P ${formatEok(summary.categoryTotals.P)} / C ${formatEok(summary.categoryTotals.C)}`,
+    },
+    {
+      label: "ETC / 간접",
+      value: formatEok(summary.etcTotal),
+      sub: "비율 항목과 고정금액을 포함합니다.",
+    },
+    {
+      label: "현재 보기",
+      value: formatEok(visibleTotal),
+      sub: `${visibleItems.length}개 항목이 필터에 포함됩니다.`,
+    },
+    {
+      label: "참조 연결",
+      value: `${referencedCount}개`,
+      sub: "검수 후 반영된 기준 항목 수입니다.",
+    },
+    {
+      label: "최대 항목",
+      value: topItem ? formatEok(topItem.amount) : "없음",
+      sub: topItem ? topItem.name : "아직 입력된 항목이 없습니다.",
+    },
+  ];
+  const deliveryPillars = [
+    {
+      label: "설계 기준",
+      title: "설계 기준 정리",
+      detail: "대분류, 세부분류, 기준연도와 참조 경로를 한 흐름으로 연결합니다.",
+    },
+    {
+      label: "조달 준비",
+      title: "조달 준비도",
+      detail: "자재·패키지 항목을 코드와 기준금액까지 함께 추적합니다.",
+    },
+    {
+      label: "시공 반영",
+      title: "시공 통제",
+      detail: "현장 시공성 검토를 직접비와 간접비 구분 안에서 유지합니다.",
+    },
+    {
+      label: "검수 게이트",
+      title: "검수 통과",
+      detail: "참조 워크북은 수정 가능한 검수 모달을 통과해야만 반영됩니다.",
+    },
+  ];
+  const controlNotes = [
+    `품질 기준: 계산은 단일 엔진에서만 수행`,
+    `참조 연결: ${referencedCount}개 항목 추적 중`,
+    topItem ? `최대 항목: ${topItem.name}` : "최대 항목: 입력 대기",
+  ];
+
   return (
-    <div className={isBuyerMode ? "estimate-shell estimate-shell--buyer" : "estimate-shell"}>
-      <div className="estimate-toolbar">
-        <div className="estimate-toolbar__group">
-          <div>
-            <span className="control-label">화면 보기</span>
-            <strong>견적산출 작업 화면</strong>
+    <>
+      <div className="estimate-studio">
+        <SiteHeader />
+
+        <section className="panel estimate-hero">
+          <div className="estimate-hero__copy">
+            <span className="eyebrow">{heroContent.eyebrow}</span>
+            <h1>{heroContent.title}</h1>
+            <p>{heroContent.body}</p>
+            <ul className="guide-list">
+              {heroContent.guides.map((guide) => (
+                <li key={guide}>{guide}</li>
+              ))}
+            </ul>
           </div>
-          <div className="estimate-toggle" role="tablist" aria-label="견적 보기 모드">
+
+          <div className="estimate-actions">
             <button
-              aria-selected={!isBuyerMode}
-              className={
-                !isBuyerMode
-                  ? "estimate-toggle__button estimate-toggle__button--active"
-                  : "estimate-toggle__button"
-              }
+              className="button button--primary"
               type="button"
-              onClick={() => setViewMode("internal")}
+              onClick={() => (viewMode === "executive" ? setViewMode("field") : addItem())}
             >
-              내부 검토
+              {viewMode === "executive" ? "현장 견적 실무형으로 전환" : "새 항목 추가"}
             </button>
             <button
-              aria-selected={isBuyerMode}
-              className={
-                isBuyerMode
-                  ? "estimate-toggle__button estimate-toggle__button--active"
-                  : "estimate-toggle__button"
-              }
+              className="button button--secondary"
+              disabled={isBusy}
               type="button"
-              onClick={() => setViewMode("buyer")}
+              onClick={handleDownloadWorkbook}
             >
-              바이어 제출
+              현재 견적 엑셀
             </button>
-          </div>
-        </div>
-
-        <div className="estimate-toolbar__facts">
-          <span className="tag">{selectedReference.name}</span>
-          <span className="tag">{input.capacityMw.toFixed(1)}MW</span>
-          <span className="tag">
-            {input.baseYear}
-            {" -> "}
-            {input.startYear}
-          </span>
-          <span className="tag">{selectedProjectOption.label}</span>
-        </div>
-
-        <div className="estimate-toolbar__actions">
-          <button
-            className="estimate-toolbar__button"
-            type="button"
-            onClick={() => setIsInputCollapsed((current) => !current)}
-          >
-            {isInputCollapsed ? "입력 펼치기" : "입력 접기"}
-          </button>
-          {isBuyerMode ? (
             <button
-              className="estimate-toolbar__button estimate-toolbar__button--primary"
+              className="button button--ghost"
+              disabled={isBusy}
               type="button"
-              onClick={() => window.print()}
+              onClick={() => workbookImportRef.current?.click()}
             >
-              보고용 인쇄
+              {isWorkbookImporting ? "엑셀 불러오는 중..." : "견적 엑셀 불러오기"}
             </button>
-          ) : null}
-        </div>
-      </div>
+            <button
+              className="button button--secondary"
+              disabled={isBusy}
+              type="button"
+              onClick={() => referenceImportRef.current?.click()}
+            >
+              {isReferenceImporting ? "참조 워크북 읽는 중..." : "참조 워크북 업로드"}
+            </button>
 
-      {isInputCollapsed ? (
-        <div className="estimate-collapsed-note">
-          입력 패널을 접은 상태입니다. 상단의 `입력 펼치기` 버튼으로 다시 열 수 있습니다.
-        </div>
-      ) : null}
+            <DisplayConfig />
 
-      <div
-        className={
-          isInputCollapsed ? "estimate-layout estimate-layout--collapsed" : "estimate-layout"
-        }
-      >
-        {!isInputCollapsed ? (
-        <aside className="estimate-panel estimate-panel--sticky">
-          <div className="control-group" id="estimate-reference">
-            <div className="control-header">
-              <span className="control-label">{copy.refDb}</span>
-              <h2>{copy.estimateTitle}</h2>
-              <p>{copy.refWorkbookDesc}</p>
+            <div className="preview-card estimate-hero__preview">
+              <span>현재 상태</span>
+              <strong>{summaryCards[0].value}</strong>
+              <p>{summaryCards[0].sub}</p>
+              <small>
+                {workbook.meta.projectName || "프로젝트명 미입력"} · {workbook.meta.estimateNo}
+              </small>
             </div>
 
-            <label className="upload-zone">
-              <input
-                accept=".xlsx,.xls,.csv"
-                className="upload-zone__input"
-                multiple
-                type="file"
-                onChange={handleReferenceImport}
-              />
-              <span>{isImporting ? copy.importing : copy.uploadWorkbook}</span>
-              <small>{copy.localParse}</small>
-              </label>
-
-              {importError ? <p className="feedback feedback--error">{importError}</p> : null}
-
-              <div className="upload-trust" role="note" aria-label={copy.uploadTrustTitle}>
-                <strong>{copy.uploadTrustTitle}</strong>
-                <p>{copy.uploadTrustPrimary}</p>
-                <p>{copy.uploadTrustSecondary}</p>
-                <p>{copy.uploadTrustTertiary}</p>
-                <p>{copy.uploadTrustQuaternary}</p>
-              </div>
-
-              <div className="reference-library">
-                {referenceProjects.map((project) => (
-                <article
-                  key={project.id}
-                  className={
-                    project.id === selectedReferenceId
-                      ? "reference-card reference-card--active"
-                      : "reference-card"
-                  }
-                >
-                  <button
-                    className="reference-card__select"
-                    type="button"
-                    onClick={() => selectReference(project.id)}
-                  >
-                    <div>
-                      <strong>{project.name}</strong>
-                      <span>
-                        {project.referenceCapacityMw.toFixed(1)}MW / {project.referenceYear}
-                      </span>
-                    </div>
-                    <strong>{formatEok(project.totalEok)}</strong>
-                  </button>
-                  <div className="reference-card__meta">
-                    <span>
-                      {project.source === "excel-upload"
-                        ? project.sourceFileName ?? copy.uploadedWorkbook
-                        : copy.builtInReference}
-                    </span>
-                    {project.source === "excel-upload" ? (
-                      <button
-                        className="text-button"
-                        type="button"
-                        onClick={() => removeReference(project.id)}
-                      >
-                        {copy.remove}
-                      </button>
-                    ) : (
-                      <span className="tag">{copy.defaultTag}</span>
-                    )}
-                  </div>
-                </article>
+            <div className="insight-card estimate-hero__control-card">
+              <span>프로젝트 통제 원칙</span>
+              <strong>품질, 검수, 추적성을 우선합니다.</strong>
+              {controlNotes.map((note) => (
+                <small key={note}>{note}</small>
               ))}
             </div>
           </div>
+        </section>
 
-          <div className="control-group" id="estimate-project">
-            <div className="control-header control-header--compact">
-              <span className="control-label">{copy.project}</span>
-              <h3>{copy.projectProfile}</h3>
+        <section className="panel mode-panel">
+          <div className="panel__header">
+            <div>
+              <span className="panel__eyebrow">화면 모드 선택</span>
+              <h2>{viewMode === "executive" ? "임원 보고형 보기" : "현장 견적 실무형 보기"}</h2>
             </div>
-            <div className="field-grid field-grid--two">
-              <label className="field field--full">
-                <span>{copy.projectName}</span>
-                <input
-                  type="text"
-                  value={input.projectName}
-                  onChange={(event) => setField("projectName", event.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span>{copy.siteName}</span>
-                <input
-                  type="text"
-                  value={input.siteName}
-                  onChange={(event) => setField("siteName", event.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span>{copy.capacity}</span>
-                <input
-                  type="number"
-                  min="0.1"
-                  max="300"
-                  step="0.1"
-                  value={input.capacityMw}
-                  onChange={(event) =>
-                    setField(
-                      "capacityMw",
-                      clampNumber(Number(event.target.value), 0.1, 300),
-                    )
-                  }
-                />
-              </label>
-              <label className="field field--full">
-                <span>{copy.siteAddress}</span>
-                <input
-                  type="text"
-                  value={input.siteAddress}
-                  onChange={(event) => setField("siteAddress", event.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span>{copy.latitude}</span>
-                <input
-                  type="number"
-                  min="-90"
-                  max="90"
-                  step="0.0001"
-                  value={input.latitude}
-                  onChange={(event) =>
-                    setField(
-                      "latitude",
-                      clampNumber(Number(event.target.value), -90, 90),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.longitude}</span>
-                <input
-                  type="number"
-                  min="-180"
-                  max="180"
-                  step="0.0001"
-                  value={input.longitude}
-                  onChange={(event) =>
-                    setField(
-                      "longitude",
-                      clampNumber(Number(event.target.value), -180, 180),
-                    )
-                  }
-                />
-              </label>
-            </div>
-
-            <div className="segmented">
-              {PROJECT_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  className={
-                    option.id === input.projectType
-                      ? "segmented__button segmented__button--active"
-                      : "segmented__button"
-                  }
-                  type="button"
-                  onClick={() => setField("projectType", option.id as ProjectType)}
-                >
-                  <strong>{option.label}</strong>
-                  <span>{option.description}</span>
-                </button>
-              ))}
-            </div>
+            <span className="panel-chip panel-chip--soft">숫자는 동일, 보기만 전환</span>
           </div>
 
-          <div className="control-group" id="estimate-escalation">
-            <div className="control-header control-header--compact">
-              <span className="control-label">{copy.escalation}</span>
-              <h3>{copy.escalationTitle}</h3>
-            </div>
-            <div className="field-grid field-grid--two">
-              <label className="field field--full">
-                <span>{copy.escalationNote}</span>
-                <input
-                  type="text"
-                  value={input.inflation.sourceLabel}
-                  onChange={(event) =>
-                    setInflationField("sourceLabel", event.target.value)
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.priceYear}</span>
-                <input
-                  type="number"
-                  min="2020"
-                  max="2040"
-                  step="1"
-                  value={input.baseYear}
-                  onChange={(event) =>
-                    setField(
-                      "baseYear",
-                      clampNumber(Number(event.target.value), 2020, 2040),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.startYear}</span>
-                <input
-                  type="number"
-                  min="2024"
-                  max="2045"
-                  step="1"
-                  value={input.startYear}
-                  onChange={(event) =>
-                    setField(
-                      "startYear",
-                      clampNumber(Number(event.target.value), 2024, 2045),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.serviceEsc}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="15"
-                  step="0.1"
-                  value={input.inflation.serviceRate}
-                  onChange={(event) =>
-                    setInflationField(
-                      "serviceRate",
-                      clampNumber(Number(event.target.value), 0, 15),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.procurementEsc}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  step="0.1"
-                  value={input.inflation.procurementRate}
-                  onChange={(event) =>
-                    setInflationField(
-                      "procurementRate",
-                      clampNumber(Number(event.target.value), 0, 20),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.constructionEsc}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  step="0.1"
-                  value={input.inflation.constructionRate}
-                  onChange={(event) =>
-                    setInflationField(
-                      "constructionRate",
-                      clampNumber(Number(event.target.value), 0, 20),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.margin}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="49.9"
-                  step="0.1"
-                  value={input.marginRate}
-                  onChange={(event) =>
-                    setField(
-                      "marginRate",
-                      clampNumber(Number(event.target.value), 0, 49.9),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.warrantyRate}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="8"
-                  step="0.1"
-                  value={input.warrantyRate}
-                  onChange={(event) =>
-                    setField(
-                      "warrantyRate",
-                      clampNumber(Number(event.target.value), 0, 8),
-                    )
-                  }
-                />
-              </label>
-            </div>
+          <div className="mode-switch">
+            {viewModes.map((mode) => (
+              <button
+                key={mode.value}
+                aria-pressed={viewMode === mode.value}
+                className={
+                  viewMode === mode.value ? "mode-option mode-option--active" : "mode-option"
+                }
+                type="button"
+                onClick={() => setViewMode(mode.value)}
+              >
+                <span>{mode.label}</span>
+                <strong>
+                  {mode.value === "executive" ? "임원 공유 대시보드" : "실무 입력 작업 화면"}
+                </strong>
+                <small>{mode.description}</small>
+              </button>
+            ))}
+          </div>
+        </section>
 
-            <div className="escalation-review">
-              <div className="escalation-review__header">
+        <div className={viewMode === "executive" ? "view-shell" : "view-shell view-shell--hidden"}>
+          <section className="summary-strip summary-strip--executive">
+            {executiveSummaryCards.map((card) => (
+              <article
+                key={card.label}
+                className={card.strong ? "summary-card summary-card--strong" : "summary-card"}
+              >
+                <span>{card.label}</span>
+                <strong>{card.value}</strong>
+                <small>{card.sub}</small>
+              </article>
+            ))}
+          </section>
+
+          <section className="report-grid">
+            <article className="panel report-panel report-panel--wide">
+              <div className="panel__header">
                 <div>
-                  <strong>{copy.escalationSnapshot}</strong>
-                  <span>{copy.escalationApplied}</span>
+                  <span className="panel__eyebrow">보고 핵심</span>
+                  <h2>보고 핵심 메시지</h2>
                 </div>
-                <span className="tag">
-                  {result.years === 0 ? "0년" : `${result.years}년 반영`}
-                </span>
+                <span className="panel-chip">{formatEok(summary.grandTotal)}</span>
               </div>
-              {result.years === 0 ? (
-                <p className="empty-state">{copy.escalationNone}</p>
-              ) : null}
-              <div className="escalation-review__list">
-                {escalationRows.map((row) => (
-                  <article className="escalation-review__row" key={row.category}>
-                    <div>
-                      <strong>{row.label}</strong>
-                      <span>연 {formatPercent(row.annualRatePct)}</span>
-                    </div>
-                    <div className="escalation-review__meta">
-                      <strong>x{row.multiplier.toFixed(4)}</strong>
-                      <span>{formatPercent(row.compoundedPct, 2)}</span>
-                    </div>
-                    <small>
-                      {copy.escalationFormula}: (1 + {formatPercent(row.annualRatePct)})^{row.years}
-                    </small>
+
+              <div className="report-message-list">
+                {executiveMessages.map((message) => (
+                  <article className="report-message" key={message}>
+                    <strong>{message}</strong>
                   </article>
                 ))}
               </div>
-            </div>
-          </div>
+            </article>
 
-          <div className="control-group" id="estimate-site">
-            <div className="control-header control-header--compact">
-              <span className="control-label">{copy.siteReview}</span>
-              <h3>{copy.siteReviewTitle}</h3>
-            </div>
-            <div className="site-list">
-              {SITE_SURVEY_OPTIONS.map((item) => (
-                <label className="site-row" key={item.id}>
-                  <div className="site-row__meta">
-                    <strong>{item.label}</strong>
-                    <span>
-                      {item.unitPriceEokPerUnit.toFixed(3)}{copy.eok} / {item.unit}
-                    </span>
-                  </div>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={input.siteSurvey[item.id] ?? 0}
-                    onChange={(event) =>
-                      setSiteSurvey(
-                        item.id,
-                        clampNumber(Number(event.target.value), 0, 9999),
-                      )
-                    }
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="control-group" id="estimate-drawing">
-            <div className="control-header control-header--compact">
-              <span className="control-label">{copy.drawingReview}</span>
-              <h3>{copy.drawingReviewTitle}</h3>
-            </div>
-            <div className="field-grid field-grid--two">
-              <label className="upload-compact">
-                <span>{copy.referenceDrawing}</span>
-                <input
-                  accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
-                  type="file"
-                  onChange={(event) =>
-                    setDrawingField(
-                      "referenceDrawingName",
-                      event.target.files?.[0]?.name ?? "",
-                    )
-                  }
-                />
-                <small>{input.drawingChange.referenceDrawingName || copy.noFile}</small>
-              </label>
-              <label className="upload-compact">
-                <span>{copy.targetDrawing}</span>
-                <input
-                  accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
-                  type="file"
-                  onChange={(event) =>
-                    setDrawingField(
-                      "targetDrawingName",
-                      event.target.files?.[0]?.name ?? "",
-                    )
-                  }
-                />
-                <small>{input.drawingChange.targetDrawingName || copy.noFile}</small>
-              </label>
-              <label className="field">
-                <span>{copy.civilChange}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.1"
-                  value={input.drawingChange.civilPct}
-                  onChange={(event) =>
-                    setDrawingField(
-                      "civilPct",
-                      clampNumber(Number(event.target.value), 0, 50),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.electricalChange}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.1"
-                  value={input.drawingChange.electricalPct}
-                  onChange={(event) =>
-                    setDrawingField(
-                      "electricalPct",
-                      clampNumber(Number(event.target.value), 0, 50),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.mechanicalChange}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.1"
-                  value={input.drawingChange.mechanicalPct}
-                  onChange={(event) =>
-                    setDrawingField(
-                      "mechanicalPct",
-                      clampNumber(Number(event.target.value), 0, 50),
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>{copy.controlChange}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.1"
-                  value={input.drawingChange.controlPct}
-                  onChange={(event) =>
-                    setDrawingField(
-                      "controlPct",
-                      clampNumber(Number(event.target.value), 0, 50),
-                    )
-                  }
-                />
-              </label>
-            </div>
-          </div>
-
-        </aside>
-        ) : null}
-
-        <section className={isBuyerMode ? "estimate-results estimate-results--buyer" : "estimate-results"}>
-          <div className="result-main">
-            <div className="result-main__copy">
-              <span className="control-label">{copy.quote}</span>
-              <h2>{formatEok(result.grandTotal)}</h2>
-              <p>
-                <strong>{selectedReference.name}</strong> {copy.basis}{" "}
-                {input.capacityMw.toFixed(1)}MW, {input.baseYear}
-                {" -> "}
-                {input.startYear}
-                {copy.resultTail}
-              </p>
-            </div>
-            <div className="result-main__meta">
-              <div>
-                <span>{copy.riskGrade}</span>
-                <strong className={gradeClass(result.riskGrade)}>{result.riskGrade}</strong>
-              </div>
-              <div>
-                <span>{copy.referenceDelta}</span>
-                <strong>
-                  {result.referenceDeltaEok >= 0 ? "+" : ""}
-                  {formatEok(result.referenceDeltaEok)}
-                </strong>
-              </div>
-              <div>
-                <span>{copy.securityStatus}</span>
-                <strong>{copy.isolatedMode}</strong>
-              </div>
-            </div>
-          </div>
-
-          {isBuyerMode ? (
-            <article className="panel-surface buyer-report">
-              <div className="panel-surface__header buyer-report__header">
+            <article className="panel report-panel">
+              <div className="panel__header">
                 <div>
-                  <span className="control-label">견적 요약</span>
-                  <h3>바이어 제출용 보고</h3>
+                  <span className="panel__eyebrow">검토 준비</span>
+                  <h2>검수와 준비 상태</h2>
                 </div>
-                <span className="buyer-report__badge">{selectedProjectOption.label}</span>
               </div>
-              <div className="buyer-report__grid">
-                <article className="buyer-report__item">
-                  <span>프로젝트</span>
-                  <strong>{input.projectName}</strong>
-                  <small>
-                    {input.siteName} · {input.capacityMw.toFixed(1)}MW
-                  </small>
-                </article>
-                <article className="buyer-report__item">
-                  <span>제출 견적</span>
-                  <strong>{formatEok(result.grandTotal)}</strong>
-                  <small>하자보수 {formatPercent(input.warrantyRate)} 포함</small>
-                </article>
-                <article className="buyer-report__item">
-                  <span>기준 프로젝트</span>
-                  <strong>{selectedReference.name}</strong>
-                  <small>
-                    {selectedReference.referenceCapacityMw.toFixed(1)}MW /{" "}
-                    {selectedReference.referenceYear}
-                  </small>
-                </article>
-                <article className="buyer-report__item">
-                  <span>리스크 등급</span>
-                  <strong className={gradeClass(result.riskGrade)}>{result.riskGrade}</strong>
-                  <small>기준 대비 {formatPercent(result.referenceDeltaPct)}</small>
-                </article>
-              </div>
-              <div className="buyer-report__panels">
-                <article className="buyer-report__panel">
-                  <strong>주요 반영 범위</strong>
-                  <ul className="buyer-report__list">
-                    {buyerHighlights.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-                <article className="buyer-report__panel">
-                  <strong>제출 메모</strong>
-                  <ul className="buyer-report__list">
-                    {buyerBasis.map((point) => (
-                      <li key={point.title}>
-                        <span>{point.title}</span>
-                        <small>{point.detail}</small>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
+
+              <div className="report-readiness">
+                {executiveReadiness.map((item) => (
+                  <div className="report-readiness__row" key={item.label}>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
               </div>
             </article>
-          ) : null}
 
-          <div className={isBuyerMode ? "summary-grid summary-grid--wide summary-grid--buyer" : "summary-grid summary-grid--wide"}>
-            {visibleSummaryCards.map((card) => (
-              <article className="summary-card" key={card.label}>
-                <span className="summary-card__label">{card.label}</span>
-                <strong>{card.value}</strong>
-                <span className="summary-card__sub">{card.sub}</span>
+            <article className="panel report-panel report-panel--wide">
+              <div className="panel__header">
+                <div>
+                  <span className="panel__eyebrow">주요 원가</span>
+                  <h2>핵심 원가 항목</h2>
+                </div>
+                <span className="panel-chip panel-chip--soft">
+                  상위 {Math.min(summary.topItems.length, 5)}개
+                </span>
+              </div>
+
+              <div className="table-wrap">
+                <table className="estimate-table estimate-table--compact">
+                  <thead>
+                    <tr>
+                      <th>항목</th>
+                      <th>카테고리</th>
+                      <th>기준</th>
+                      <th>금액</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.topItems.length === 0 ? (
+                      <tr>
+                        <td className="empty-cell" colSpan={4}>
+                          보고용 핵심 항목은 입력 후 자동으로 정리됩니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      summary.topItems.slice(0, 5).map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="cell-stack">
+                              <strong>{item.name}</strong>
+                              <small>{item.code}</small>
+                            </div>
+                          </td>
+                          <td>{CATEGORY_SHORT_LABELS[item.category]}</td>
+                          <td>
+                            {item.pricingMode === "PERCENT"
+                              ? getPercentBaseLabel(item.percentBase)
+                              : item.subcategory}
+                          </td>
+                          <td className="amount-cell">{formatEok(item.amount)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article className="panel report-panel">
+              <div className="panel__header">
+                <div>
+                  <span className="panel__eyebrow">프로젝트 정보</span>
+                  <h2>프로젝트 개요</h2>
+                </div>
+              </div>
+
+              <div className="report-readiness">
+                <div className="report-readiness__row">
+                  <span>프로젝트</span>
+                  <strong>{workbook.meta.projectName || "미입력"}</strong>
+                </div>
+                <div className="report-readiness__row">
+                  <span>발주처</span>
+                  <strong>{workbook.meta.clientName || "미입력"}</strong>
+                </div>
+                <div className="report-readiness__row">
+                  <span>현장 위치</span>
+                  <strong>{workbook.meta.location || "미입력"}</strong>
+                </div>
+                <div className="report-readiness__row">
+                  <span>작성자</span>
+                  <strong>{workbook.meta.preparedBy || "미입력"}</strong>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <EstimateAnalytics summary={summary} />
+        </div>
+
+        <div className={viewMode === "field" ? "view-shell" : "view-shell view-shell--hidden"}>
+          <section className="delivery-strip">
+            {deliveryPillars.map((pillar) => (
+              <article className="delivery-card" key={pillar.title}>
+                <span>{pillar.label}</span>
+                <strong>{pillar.title}</strong>
+                <p>{pillar.detail}</p>
               </article>
             ))}
-          </div>
+          </section>
 
-          {isBuyerMode ? (
-            <div className="buyer-grid">
-              <article className="panel-surface">
-                <div className="panel-surface__header">
-                  <span className="control-label">제출 조건</span>
-                  <h3>기준 및 상업 조건</h3>
+          <section className="summary-strip">
+            {summaryCards.map((card) => (
+              <article
+                key={card.label}
+                className={card.strong ? "summary-card summary-card--strong" : "summary-card"}
+              >
+                <span>{card.label}</span>
+                <strong>{card.value}</strong>
+                <small>{card.sub}</small>
+              </article>
+            ))}
+          </section>
+
+          <section className="project-grid">
+            <article className="panel project-panel">
+              <div className="panel__header">
+                <div>
+                  <span className="panel__eyebrow">프로젝트 메타</span>
+                  <h2>견적 기본 정보</h2>
                 </div>
-                <div className="detail-list">
-                  {buyerConditions.map((item) => (
-                    <div className="detail-list__row" key={item}>
-                      <strong>{item.split(":")[0]}</strong>
-                      <span>{item.split(":").slice(1).join(":").trim()}</span>
+                <span className="panel-chip panel-chip--soft">KRW 기준</span>
+              </div>
+
+            <div className="meta-grid">
+              <label className="field">
+                <span>프로젝트명</span>
+                <input
+                  type="text"
+                  value={workbook.meta.projectName}
+                  onChange={(event) => updateMetaField("projectName", event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>발주처</span>
+                <input
+                  type="text"
+                  value={workbook.meta.clientName}
+                  onChange={(event) => updateMetaField("clientName", event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>현장 위치</span>
+                <input
+                  type="text"
+                  value={workbook.meta.location}
+                  onChange={(event) => updateMetaField("location", event.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="meta-grid">
+              <label className="field">
+                <span>견적 번호</span>
+                <input
+                  type="text"
+                  value={workbook.meta.estimateNo}
+                  onChange={(event) => updateMetaField("estimateNo", event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>기준연도</span>
+                <input
+                  type="number"
+                  min="2020"
+                  max="2045"
+                  value={workbook.meta.baseYear}
+                  onChange={(event) =>
+                    updateMetaField("baseYear", Number(event.target.value) || workbook.meta.baseYear)
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>착수연도</span>
+                <input
+                  type="number"
+                  min="2020"
+                  max="2045"
+                  value={workbook.meta.startYear}
+                  onChange={(event) =>
+                    updateMetaField("startYear", Number(event.target.value) || workbook.meta.startYear)
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="field-grid">
+              <label className="field">
+                <span>작성자</span>
+                <input
+                  type="text"
+                  value={workbook.meta.preparedBy}
+                  onChange={(event) => updateMetaField("preparedBy", event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>비고</span>
+                <textarea
+                  rows={4}
+                  value={workbook.meta.notes}
+                  onChange={(event) => updateMetaField("notes", event.target.value)}
+                />
+              </label>
+            </div>
+          </article>
+
+          <article className="panel info-panel">
+            <div className="panel__header">
+              <div>
+                <span className="panel__eyebrow">검수 상태</span>
+                <h2>로컬 처리와 업로드 흐름</h2>
+              </div>
+              <span className="panel-chip">외부 전송 없음</span>
+            </div>
+
+            <p className="info-panel__notice">
+              업로드 파일은 브라우저에서만 읽고 계산합니다. 참조 워크북은 즉시 반영하지 않고
+              검수 모달을 거친 뒤 현재 견적에 추가됩니다. 안전한 데이터 경계와 검수 우선 흐름을
+              유지하는 것이 이 화면의 기본 원칙입니다.
+            </p>
+
+            {notice ? (
+              <div className="preview-card">
+                <span>최근 작업</span>
+                <strong>{notice}</strong>
+              </div>
+            ) : null}
+
+            {error ? (
+              <div className="insight-card insight-card--danger">
+                <span>확인 필요</span>
+                <strong>{error}</strong>
+              </div>
+            ) : null}
+
+            {importSnapshot ? (
+              <div className="preview-card">
+                <span>마지막 불러오기</span>
+                <strong>{importSnapshot.fileName}</strong>
+                <small>{importSnapshot.importedCount.toLocaleString("ko-KR")}개 항목 반영</small>
+                <small>
+                  {CATEGORY_ORDER.map((category) => {
+                    const sheetName = CATEGORY_SHEET_NAMES[category];
+                    return `${sheetName} ${importSnapshot.sheetCounts[sheetName] ?? 0}개`;
+                  }).join(" · ")}
+                </small>
+              </div>
+            ) : null}
+
+            <ul className="guide-list">
+              <li>금액 요약은 `억원`, 상세 금액은 `원` 기준으로 표시합니다.</li>
+              <li>참조 코드와 원본 경로는 각 항목에 함께 보관됩니다.</li>
+              <li>새로고침하면 현재 세션 상태는 초기화됩니다.</li>
+              {importSnapshot?.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </article>
+        </section>
+
+        <section className="workspace-grid">
+          <aside className="panel sidebar-panel">
+            <div className="panel__header">
+              <div>
+                <span className="panel__eyebrow">분류 트리</span>
+                <h2>카테고리별 내역</h2>
+              </div>
+              <span className="panel-chip panel-chip--soft">{workbook.items.length}개</span>
+            </div>
+
+            <button
+              className={activeCategory === "ALL" ? "tree-root tree-root--active" : "tree-root"}
+              type="button"
+              onClick={() => {
+                setActiveCategory("ALL");
+                setActiveSubcategory("");
+              }}
+            >
+              <div>
+                <strong>전체 내역</strong>
+                <small>직접 EPC와 ETC를 한 화면에서 검토합니다.</small>
+              </div>
+              <span className="panel-chip">{formatEok(summary.grandTotal)}</span>
+            </button>
+
+            <div className="tree-stack">
+              {summary.categorySummaries.map((category) => (
+                <div className="tree-section" key={category.category}>
+                  <button
+                    className={
+                      activeCategory === category.category && !activeSubcategory
+                        ? "tree-node tree-node--active"
+                        : "tree-node"
+                    }
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(category.category);
+                      setActiveSubcategory("");
+                    }}
+                  >
+                    <div>
+                      <strong>{CATEGORY_LABELS[category.category]}</strong>
+                      <small>{CATEGORY_DESCRIPTIONS[category.category]}</small>
                     </div>
-                  ))}
-                  <div className="detail-list__row">
-                    <strong>적용 물가상승</strong>
-                    <span>
-                      서비스 {formatPercent(input.inflation.serviceRate)} / 조달{" "}
-                      {formatPercent(input.inflation.procurementRate)} / 시공{" "}
-                      {formatPercent(input.inflation.constructionRate)}
-                    </span>
-                  </div>
-                </div>
-              </article>
+                    <span className="panel-chip">{formatEok(category.total)}</span>
+                  </button>
 
-              <article className="panel-surface">
-                <div className="panel-surface__header">
-                  <span className="control-label">리스크 검토</span>
-                  <h3>제출 시 유의사항</h3>
+                  {category.subcategories.length > 0 ? (
+                    <div className="tree-children">
+                      {category.subcategories.map((subcategory) => (
+                        <button
+                          key={`${category.category}-${subcategory.name}`}
+                          className={
+                            activeCategory === category.category &&
+                            activeSubcategory === subcategory.name
+                              ? "tree-leaf tree-leaf--active"
+                              : "tree-leaf"
+                          }
+                          type="button"
+                          onClick={() => {
+                            setActiveCategory(category.category);
+                            setActiveSubcategory(subcategory.name);
+                          }}
+                        >
+                          <div>
+                            <strong>{subcategory.name}</strong>
+                            <small>{subcategory.count}개 항목</small>
+                          </div>
+                          <span>{formatEok(subcategory.total)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-                {buyerFindings.length === 0 ? (
-                  <p className="empty-state">현재 기준으로 즉시 보고를 막는 주요 이슈는 없습니다.</p>
-                ) : (
-                  <div className="risk-list">
-                    {buyerFindings.map((finding) => (
-                      <article className="risk-item" key={finding.title}>
-                        <div className="risk-item__header">
-                          <strong>{finding.title}</strong>
-                          <span className={severityClass(finding.severity)}>
-                            {finding.severity}
-                          </span>
-                        </div>
-                        <p>{finding.reason}</p>
-                        <div className="risk-item__footer">
-                          <span>{copy.impact} {formatEok(finding.impactEok)}</span>
-                          <span>{finding.mitigation}</span>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </article>
-
-              <article className="panel-surface">
-                <div className="panel-surface__header">
-                  <span className="control-label">참조 비교</span>
-                  <h3>기준 프로젝트 대비 위치</h3>
-                </div>
-                <div className="key-metric-grid key-metric-grid--buyer">
-                  <div className="key-metric">
-                    <span>{copy.referenceOriginal}</span>
-                    <strong>{formatEok(result.referenceTotalEok)}</strong>
-                  </div>
-                  <div className="key-metric">
-                    <span>{copy.referenceEscalated}</span>
-                    <strong>{formatEok(result.escalatedReferenceTotalEok)}</strong>
-                  </div>
-                  <div className="key-metric">
-                    <span>{copy.currentQuote}</span>
-                    <strong>{formatEok(result.grandTotal)}</strong>
-                  </div>
-                  <div className="key-metric">
-                    <span>{copy.delta}</span>
-                    <strong>{formatPercent(result.referenceDeltaPct)}</strong>
-                  </div>
-                </div>
-              </article>
+              ))}
             </div>
-          ) : (
-          <>
-          <div className="insight-grid">
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.categorySplit}</span>
-                <h3>{copy.categorySplitTitle}</h3>
-              </div>
-              <div className="metric-list">
-                <div className="metric-row">
-                  <span>서비스</span>
-                  <strong>{formatEok(result.categoryTotals.S)}</strong>
-                </div>
-                <div className="metric-row">
-                  <span>조달</span>
-                  <strong>{formatEok(result.categoryTotals.P)}</strong>
-                </div>
-                <div className="metric-row">
-                  <span>시공</span>
-                  <strong>{formatEok(result.categoryTotals.C)}</strong>
-                </div>
-              </div>
-            </article>
+          </aside>
 
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.riskEnvelope}</span>
-                <h3>{copy.riskEnvelopeTitle}</h3>
+          <article className="panel table-panel">
+            <div className="panel__header">
+              <div>
+                <span className="panel__eyebrow">견적 테이블</span>
+                <h2>{activeFilterLabel}</h2>
+                <p className="info-panel__notice">{activeFilterDescription}</p>
               </div>
-              <div className="metric-list">
-                {result.scenarios.map((row) => (
-                  <div className="metric-row" key={row.label}>
-                    <span>{row.label}</span>
-                    <strong>{formatEok(row.total)}</strong>
-                  </div>
-                ))}
+              <div className="panel__metrics">
+                <span className="panel-chip">{formatEok(visibleTotal)}</span>
+                <span className="panel-chip panel-chip--soft">{visibleItems.length}개</span>
               </div>
-            </article>
-
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.bidStrategy}</span>
-                <h3>{copy.bidStrategyTitle}</h3>
-              </div>
-              <div className="metric-list">
-                {result.strategies.map((row) => (
-                  <div className="metric-row" key={row.label}>
-                    <span>{row.label}</span>
-                    <strong>{formatEok(row.total)}</strong>
-                  </div>
-                ))}
-              </div>
-            </article>
-          </div>
-
-          <EstimateAnalytics
-            benchmark={benchmark}
-            currentEntry={currentHistoryEntry}
-            history={historySnapshots}
-            monteCarlo={monteCarlo}
-            onChangeUncertainty={setUncertaintyField}
-            onClearHistory={clearHistorySnapshots}
-            onJumpToSection={jumpToInputSection}
-            onResetUncertainty={resetUncertaintyProfile}
-            previousEntry={previousHistoryEntry}
-            uncertaintyProfile={uncertaintyProfile}
-          />
-
-          <div className="comparison-grid">
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.referenceComparison}</span>
-                <h3>{copy.referenceComparisonTitle}</h3>
-              </div>
-              <div className="key-metric-grid">
-                <div className="key-metric">
-                  <span>{copy.referenceOriginal}</span>
-                  <strong>{formatEok(result.referenceTotalEok)}</strong>
-                </div>
-                <div className="key-metric">
-                  <span>{copy.referenceEscalated}</span>
-                  <strong>{formatEok(result.escalatedReferenceTotalEok)}</strong>
-                </div>
-                <div className="key-metric">
-                  <span>{copy.currentQuote}</span>
-                  <strong>{formatEok(result.grandTotal)}</strong>
-                </div>
-                <div className="key-metric">
-                  <span>{copy.delta}</span>
-                  <strong>{formatPercent(result.referenceDeltaPct)}</strong>
-                </div>
-              </div>
-              <div className="detail-list">
-                {selectedReference.notes.map((note, index) => (
-                  <div className="detail-list__row" key={`${selectedReference.id}-${index}`}>
-                    <strong>{copy.referenceNote} {index + 1}</strong>
-                    <span>{note}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.riskReview}</span>
-                <h3>{copy.riskReviewTitle}</h3>
-              </div>
-              {result.findings.length === 0 ? (
-                <p className="empty-state">{copy.noRisk}</p>
-              ) : (
-                <div className="risk-list">
-                  {result.findings.map((finding) => (
-                    <article className="risk-item" key={finding.title}>
-                      <div className="risk-item__header">
-                        <strong>{finding.title}</strong>
-                        <span className={severityClass(finding.severity)}>{finding.severity}</span>
-                      </div>
-                      <p>{finding.reason}</p>
-                      <div className="risk-item__footer">
-                        <span>{copy.impact} {formatEok(finding.impactEok)}</span>
-                        <span>{finding.mitigation}</span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </article>
-
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.estimateBasis}</span>
-                <h3>{copy.estimateBasisTitle}</h3>
-              </div>
-              <div className="detail-list">
-                {result.basis.map((point) => (
-                  <div className="detail-list__row" key={point.title}>
-                    <strong>{point.title}</strong>
-                    <span>{point.detail}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.securityPanel}</span>
-                <h3>{copy.securityPanelTitle}</h3>
-              </div>
-              <div className="detail-list">
-                <div className="detail-list__row">
-                  <strong>{copy.securityStorage}</strong>
-                  <span>{copy.securityStorageDesc}</span>
-                </div>
-                <div className="detail-list__row">
-                  <strong>{copy.securityNetwork}</strong>
-                  <span>{copy.securityNetworkDesc}</span>
-                </div>
-                <div className="detail-list__row">
-                  <strong>{copy.securityReset}</strong>
-                  <span>{copy.securityResetDesc}</span>
-                </div>
-              </div>
-            </article>
-
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.siteSummary}</span>
-                <h3>{copy.siteSummaryTitle}</h3>
-              </div>
-              <p className="empty-state">{copy.siteSummaryDesc}</p>
-              <div className="detail-list">
-                <div className="detail-list__row">
-                  <strong>현장명</strong>
-                  <span>{input.siteName}</span>
-                </div>
-                <div className="detail-list__row">
-                  <strong>주소</strong>
-                  <span>{input.siteAddress}</span>
-                </div>
-                <div className="detail-list__row">
-                  <strong>좌표</strong>
-                  <span>
-                    {hasCoordinates
-                      ? `${input.latitude.toFixed(4)}, ${input.longitude.toFixed(4)}`
-                      : copy.noCoordinates}
-                  </span>
-                </div>
-              </div>
-              <div className="tag-row">
-                <span className="tag">{copy.securityNetwork}</span>
-                <span className="tag">{input.siteName}</span>
-                <span className="tag">{input.siteAddress || "주소 미입력"}</span>
-              </div>
-            </article>
-
-            <article className="panel-surface">
-              <div className="panel-surface__header">
-                <span className="control-label">{copy.virtualLayout}</span>
-                <h3>{copy.virtualLayoutTitle}</h3>
-              </div>
-              <LayoutCanvas layout={result.layout} />
-              <div className="detail-list">
-                <div className="detail-list__row">
-                  <strong>{copy.estimatedLandUse}</strong>
-                  <span>{result.layout.estimatedLandM2.toLocaleString("en-US")} m2</span>
-                </div>
-                {result.layout.notes.map((note, index) => (
-                  <div className="detail-list__row" key={`layout-note-${index}`}>
-                    <strong>{copy.layoutNote} {index + 1}</strong>
-                    <span>{note}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-          </div>
-
-          <article className="panel-surface">
-            <div className="panel-surface__header">
-              <span className="control-label">{copy.breakdown}</span>
-              <h3>{copy.breakdownTitle}</h3>
             </div>
+
+            <div className="field-grid">
+              <label className="field">
+                <span>항목 검색</span>
+                <input
+                  placeholder="코드, 항목명, 비고, 참조코드 검색"
+                  type="search"
+                  value={searchKeyword}
+                  onChange={(event) => setSearchKeyword(event.target.value)}
+                />
+              </label>
+            </div>
+
             <div className="table-wrap">
-              <table>
+              <table className="estimate-table">
                 <thead>
                   <tr>
-                    <th>{copy.item}</th>
-                    <th>{copy.kind}</th>
-                    <th>{copy.category}</th>
-                    <th>{copy.base}</th>
-                    <th>{copy.escalated}</th>
-                    <th>{copy.basisCol}</th>
-                    <th>{copy.note}</th>
+                    <th>코드</th>
+                    <th>항목</th>
+                    <th>산정방식</th>
+                    <th>수량 / 비율</th>
+                    <th>단가 / 기준</th>
+                    <th>계산금액</th>
+                    <th>참조</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {result.costItems.concat(result.siteItems).map((item) => (
-                    <tr key={item.code}>
-                      <td>{item.name}</td>
-                      <td>{item.kind}</td>
-                      <td>{item.category}</td>
-                      <td>{formatEok(item.amountEok)}</td>
-                      <td>{formatEok(item.adjustedAmountEok)}</td>
-                      <td>{item.basis ?? "-"}</td>
-                      <td>{item.note ?? "-"}</td>
+                  {visibleItems.length === 0 ? (
+                    <tr>
+                      <td className="empty-cell" colSpan={7}>
+                        현재 필터에 맞는 항목이 없습니다. 새 항목을 추가하거나 필터를 변경해 주세요.
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    visibleItems.map((item) => {
+                      const computedAmount = getItemComputedAmount(item, summary);
+                      const pricingLabel =
+                        PRICING_MODE_OPTIONS.find((option) => option.value === item.pricingMode)
+                          ?.label ?? item.pricingMode;
+
+                      return (
+                        <tr
+                          key={item.id}
+                          aria-selected={selectedItemId === item.id}
+                          className={selectedItemId === item.id ? "is-selected" : undefined}
+                          onClick={() => setSelectedItemId(item.id)}
+                        >
+                          <td>
+                            <div className="cell-stack">
+                              <strong>{item.code}</strong>
+                              <small>
+                                {CATEGORY_SHORT_LABELS[item.category]} · {item.subcategory}
+                              </small>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="cell-stack">
+                              <strong>{item.name || "항목명 미입력"}</strong>
+                              <small>{item.spec || item.note || "-"}</small>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="cell-stack">
+                              <strong>{pricingLabel}</strong>
+                              <small>
+                                {item.pricingMode === "PERCENT"
+                                  ? getPercentBaseLabel(item.percentBase)
+                                  : item.unit || "-"}
+                              </small>
+                            </div>
+                          </td>
+                          <td>
+                            {item.pricingMode === "UNIT"
+                              ? item.qty.toLocaleString("ko-KR")
+                              : item.pricingMode === "PERCENT"
+                                ? formatPercent(item.percentRate, 2)
+                                : "-"}
+                          </td>
+                          <td className="amount-cell">
+                            {item.pricingMode === "UNIT"
+                              ? formatKrw(item.unitPrice)
+                              : item.pricingMode === "MANUAL"
+                                ? formatKrw(item.manualAmount)
+                                : getPercentBaseLabel(item.percentBase)}
+                          </td>
+                          <td className="amount-cell">{formatKrw(computedAmount)}</td>
+                          <td>
+                            <div className="cell-stack">
+                              <strong>{item.referenceCode || "직접 입력"}</strong>
+                              <small>{item.referenceLabel || "-"}</small>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
           </article>
-          </>
-          )}
+
+          <article className="panel editor-panel">
+            <div className="panel__header">
+              <div>
+                <span className="panel__eyebrow">편집 패널</span>
+                <h2>{selectedItem ? `${selectedItem.code} 상세 편집` : "새 항목 준비"}</h2>
+              </div>
+              <div className="panel__metrics">
+                <span className="panel-chip">{CATEGORY_SHORT_LABELS[editorCategory]}</span>
+                <span className="panel-chip panel-chip--soft">
+                  {selectedItem ? formatEok(getItemComputedAmount(selectedItem, summary)) : "0.0 억원"}
+                </span>
+              </div>
+            </div>
+
+            <div className="editor-actions">
+              <button className="button button--primary" type="button" onClick={() => addItem()}>
+                같은 분류 항목 추가
+              </button>
+              <button
+                className="button button--secondary"
+                disabled={!selectedItem}
+                type="button"
+                onClick={duplicateSelectedItem}
+              >
+                선택 항목 복사
+              </button>
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={() => addItem(activeCategory === "ALL" ? "E" : activeCategory)}
+              >
+                새 카테고리 행 추가
+              </button>
+              <button
+                className="button button--danger"
+                disabled={!selectedItem}
+                type="button"
+                onClick={removeSelectedItem}
+              >
+                선택 항목 삭제
+              </button>
+            </div>
+
+            {selectedItem ? (
+              <>
+                <div className="editor-form">
+                  <div className="field-grid">
+                    <label className="field">
+                      <span>카테고리</span>
+                      <select
+                        value={selectedItem.category}
+                        onChange={(event) => {
+                          const nextCategory = event.target.value as EstimateCategory;
+                          updateItem(selectedItem.id, (item) => ({
+                            category: nextCategory,
+                            subcategory:
+                              getSubcategoryOptions(nextCategory).includes(item.subcategory)
+                                ? item.subcategory
+                                : getSubcategoryOptions(nextCategory)[0] || item.subcategory,
+                            pricingMode:
+                              nextCategory === "ETC"
+                                ? "PERCENT"
+                                : item.pricingMode === "PERCENT"
+                                  ? "UNIT"
+                                  : item.pricingMode,
+                            unit:
+                              nextCategory === "ETC"
+                                ? "%"
+                                : item.pricingMode === "PERCENT"
+                                  ? "식"
+                                  : item.unit,
+                          }));
+                        }}
+                      >
+                        {CATEGORY_ORDER.map((category) => (
+                          <option key={category} value={category}>
+                            {CATEGORY_LABELS[category]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="field">
+                      <span>세부분류</span>
+                      <select
+                        value={selectedItem.subcategory}
+                        onChange={(event) =>
+                          updateItem(selectedItem.id, () => ({
+                            subcategory: event.target.value,
+                          }))
+                        }
+                      >
+                        {[
+                          ...new Set(
+                            [selectedItem.subcategory, ...editorSubcategoryOptions].filter(Boolean),
+                          ),
+                        ].map((subcategory) => (
+                          <option key={subcategory} value={subcategory}>
+                            {subcategory}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="field-grid">
+                    <label className="field">
+                      <span>항목명</span>
+                      <input
+                        type="text"
+                        value={selectedItem.name}
+                        onChange={(event) =>
+                          updateItem(selectedItem.id, () => ({ name: event.target.value }))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span>규격 / 설명</span>
+                      <input
+                        type="text"
+                        value={selectedItem.spec}
+                        onChange={(event) =>
+                          updateItem(selectedItem.id, () => ({ spec: event.target.value }))
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  <div className="field-grid">
+                    <label className="field">
+                      <span>산정방식</span>
+                      <select
+                        value={selectedItem.pricingMode}
+                        onChange={(event) => {
+                          const nextMode = event.target.value as EstimateItem["pricingMode"];
+                          updateItem(selectedItem.id, () => ({
+                            pricingMode: nextMode,
+                            unit: nextMode === "PERCENT" ? "%" : selectedItem.unit || "식",
+                          }));
+                        }}
+                      >
+                        {PRICING_MODE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="field">
+                      <span>단위</span>
+                      <input
+                        disabled={selectedItem.pricingMode === "PERCENT"}
+                        type="text"
+                        value={selectedItem.pricingMode === "PERCENT" ? "%" : selectedItem.unit}
+                        onChange={(event) =>
+                          updateItem(selectedItem.id, () => ({ unit: event.target.value }))
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  {selectedItem.pricingMode === "UNIT" ? (
+                    <div className="field-grid">
+                      <label className="field">
+                        <span>수량</span>
+                        <input
+                          min="0"
+                          step="0.01"
+                          type="number"
+                          value={selectedItem.qty}
+                          onChange={(event) =>
+                            updateItem(selectedItem.id, () => ({ qty: Number(event.target.value) }))
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        <span>단가 (원)</span>
+                        <input
+                          min="0"
+                          step="1"
+                          type="number"
+                          value={selectedItem.unitPrice}
+                          onChange={(event) =>
+                            updateItem(selectedItem.id, () => ({
+                              unitPrice: Number(event.target.value),
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+
+                  {selectedItem.pricingMode === "MANUAL" ? (
+                    <div className="field-grid">
+                      <label className="field">
+                        <span>직접 입력 금액 (원)</span>
+                        <input
+                          min="0"
+                          step="1"
+                          type="number"
+                          value={selectedItem.manualAmount}
+                          onChange={(event) =>
+                            updateItem(selectedItem.id, () => ({
+                              manualAmount: Number(event.target.value),
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+
+                  {selectedItem.pricingMode === "PERCENT" ? (
+                    <div className="field-grid">
+                      <label className="field">
+                        <span>비율 (%)</span>
+                        <input
+                          min="0"
+                          step="0.1"
+                          type="number"
+                          value={selectedItem.percentRate}
+                          onChange={(event) =>
+                            updateItem(selectedItem.id, () => ({
+                              percentRate: Number(event.target.value),
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        <span>기준금액</span>
+                        <select
+                          value={selectedItem.percentBase}
+                          onChange={(event) =>
+                            updateItem(selectedItem.id, () => ({
+                              percentBase: event.target.value as EstimateItem["percentBase"],
+                            }))
+                          }
+                        >
+                          {PERCENT_BASE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
+
+                  <label className="field">
+                    <span>비고</span>
+                    <textarea
+                      rows={4}
+                      value={selectedItem.note}
+                      onChange={(event) =>
+                        updateItem(selectedItem.id, () => ({ note: event.target.value }))
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="preview-card">
+                  <span>즉시 계산 결과</span>
+                  <strong>{formatEok(getItemComputedAmount(selectedItem, summary))}</strong>
+                  <small>{formatKrw(getItemComputedAmount(selectedItem, summary))}</small>
+                  <small>
+                    {selectedItem.pricingMode === "PERCENT"
+                      ? `${formatPercent(selectedItem.percentRate, 2)} / ${getPercentBaseLabel(selectedItem.percentBase)}`
+                      : selectedItem.pricingMode === "UNIT"
+                        ? `${selectedItem.qty.toLocaleString("ko-KR")} × ${formatKrw(selectedItem.unitPrice)}`
+                        : "직접 입력 금액"}
+                  </small>
+                </div>
+
+                {selectedItem.referenceItemId ? (
+                  <div className="insight-card">
+                    <span>참조 연결</span>
+                    <strong>{selectedItem.referenceCode || "참조코드 없음"}</strong>
+                    <small>{selectedItem.referenceLabel || "-"}</small>
+                    <small>
+                      기준금액 {selectedItem.referenceAmount > 0 ? formatEok(selectedItem.referenceAmount) : "-"}
+                    </small>
+                  </div>
+                ) : null}
+
+                {selectedItem.pricingMode === "PERCENT" && selectedItem.category !== "ETC" ? (
+                  <div className="insight-card insight-card--danger">
+                    <span>검토 메모</span>
+                    <strong>비율 산정은 ETC 항목에서 쓰는 편이 안전합니다.</strong>
+                    <small>직접비 항목은 수량 x 단가 또는 직접입력 방식을 권장합니다.</small>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="empty-cell">
+                선택된 항목이 없습니다. 왼쪽 테이블에서 항목을 고르거나 새 항목을 추가해 주세요.
+              </div>
+            )}
+          </article>
         </section>
+
+        <EstimateAnalytics summary={summary} />
+        </div>
       </div>
 
-      {pendingImports.length > 0 ? (
+      <input
+        ref={workbookImportRef}
+        accept=".xlsx,.xls,.csv"
+        className="sr-only"
+        type="file"
+        onChange={handleWorkbookImport}
+      />
+      <input
+        ref={referenceImportRef}
+        accept=".xlsx,.xls"
+        className="sr-only"
+        type="file"
+        onChange={handleReferenceImport}
+      />
+
+      {pendingReference && pendingReferenceSummary ? (
         <div className="review-modal" role="presentation">
           <button
-            aria-label={copy.cancelReview}
+            aria-label="참조 워크북 검수 취소"
             className="review-modal__backdrop"
             type="button"
-            onClick={cancelPendingImports}
+            onClick={() => setPendingReference(null)}
           />
           <div
             aria-describedby="reference-review-description"
@@ -1621,220 +1596,258 @@ export function EstimateStudio() {
           >
             <div className="review-modal__header">
               <div>
-                <span className="control-label">{copy.reviewImport}</span>
-                <h3 id="reference-review-title">{copy.reviewImportTitle}</h3>
-                <p id="reference-review-description">{copy.reviewImportDesc}</p>
+                <span className="panel__eyebrow">참조 워크북 검수</span>
+                <h3 id="reference-review-title">업로드 내용을 확인한 뒤 반영합니다.</h3>
+                <p id="reference-review-description">
+                  파일명, 기준연도, 기준용량, 항목별 카테고리와 금액을 수정한 후 현재 견적에
+                  반영해 주세요.
+                </p>
               </div>
-              <span className="tag">
-                {pendingImports.length}개 {copy.importReady}
-              </span>
+              <span className="panel-chip">{pendingReferenceSummary.includedCount}개 반영 예정</span>
             </div>
 
             <div className="review-modal__body">
-              {pendingImports.map((inspection) => (
-                <article className="import-review-card" key={inspection.project.id}>
-                  <div className="import-review-card__header">
-                    <div>
-                      <strong>{inspection.fileName}</strong>
-                      <span>{inspection.project.sourceFileName ?? inspection.fileName}</span>
-                    </div>
-                    <button
-                      className="text-button"
-                      type="button"
-                      onClick={() => removePendingImport(inspection.project.id)}
-                    >
-                      {copy.removePending}
-                    </button>
-                  </div>
+              <div className="field-grid review-modal__meta">
+                <label className="field">
+                  <span>파일명</span>
+                  <input readOnly type="text" value={pendingReference.fileName} />
+                </label>
+                <label className="field">
+                  <span>기준 프로젝트명</span>
+                  <input
+                    type="text"
+                    value={pendingReference.projectName}
+                    onChange={(event) =>
+                      setPendingReference((current) =>
+                        current
+                          ? {
+                              ...current,
+                              projectName: event.target.value,
+                            }
+                          : current,
+                      )
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>기준연도</span>
+                  <input
+                    placeholder="예: 2026"
+                    type="number"
+                    value={pendingReference.referenceYear ?? ""}
+                    onChange={(event) =>
+                      setPendingReference((current) =>
+                        current
+                          ? {
+                              ...current,
+                              referenceYear: parseOptionalNumber(event.target.value),
+                            }
+                          : current,
+                      )
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>기준용량 (MW)</span>
+                  <input
+                    placeholder="예: 15"
+                    step="0.1"
+                    type="number"
+                    value={pendingReference.capacityMw ?? ""}
+                    onChange={(event) =>
+                      setPendingReference((current) =>
+                        current
+                          ? {
+                              ...current,
+                              capacityMw: parseOptionalNumber(event.target.value),
+                            }
+                          : current,
+                      )
+                    }
+                  />
+                </label>
+              </div>
 
-                  <div className="field-grid field-grid--two">
-                    <label className="field field--full">
-                      <span>{copy.reviewName}</span>
-                      <input
-                        type="text"
-                        value={inspection.project.name}
-                        onChange={(event) =>
-                          updatePendingProjectField(
-                            inspection.project.id,
-                            "name",
-                            event.target.value,
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span>{copy.reviewYear}</span>
-                      <input
-                        type="number"
-                        min="2020"
-                        max="2045"
-                        step="1"
-                        value={inspection.project.referenceYear}
-                        onChange={(event) =>
-                          updatePendingProjectField(
-                            inspection.project.id,
-                            "referenceYear",
-                            clampNumber(Number(event.target.value), 2020, 2045),
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span>{copy.reviewCapacity}</span>
-                      <input
-                        type="number"
-                        min="0.1"
-                        max="300"
-                        step="0.1"
-                        value={inspection.project.referenceCapacityMw}
-                        onChange={(event) =>
-                          updatePendingProjectField(
-                            inspection.project.id,
-                            "referenceCapacityMw",
-                            clampNumber(Number(event.target.value), 0.1, 300),
-                          )
-                        }
-                      />
-                    </label>
-                  </div>
-
-                  <div className="summary-grid">
-                    <article className="summary-card">
-                      <span className="summary-card__label">{copy.parsedTotal}</span>
-                      <strong>{formatEok(inspection.project.totalEok)}</strong>
-                    </article>
-                    <article className="summary-card">
-                      <span className="summary-card__label">{copy.parsedItems}</span>
-                      <strong>{inspection.itemCount.toLocaleString("en-US")}개</strong>
-                    </article>
-                    <article className="summary-card">
-                      <span className="summary-card__label">{copy.parsedSheets}</span>
-                      <strong>{inspection.sheetCount.toLocaleString("en-US")}개</strong>
-                    </article>
-                  </div>
-
-                  <div className="import-review-card__split">
-                    <span className="summary-card__label">{copy.categorySubtotal}</span>
-                    <div className="tag-row">
-                      <span className="tag">S {formatEok(inspection.categoryTotals.S)}</span>
-                      <span className="tag">P {formatEok(inspection.categoryTotals.P)}</span>
-                      <span className="tag">C {formatEok(inspection.categoryTotals.C)}</span>
-                    </div>
-                  </div>
-
-                  <div className="import-review-card__split">
-                    <span className="summary-card__label">{copy.reviewItems}</span>
-                    <span className="field-hint">{copy.reviewItemsDesc}</span>
-                    <div className="table-wrap import-review-table-wrap">
-                      <table className="import-review-table">
-                        <thead>
-                          <tr>
-                            <th>{copy.reviewCode}</th>
-                            <th>{copy.item}</th>
-                            <th>{copy.reviewCategoryCode}</th>
-                            <th>{copy.reviewAmount}</th>
-                            <th>{copy.reviewItemNote}</th>
-                            <th>{copy.removePending}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {inspection.project.items.map((item) => (
-                            <tr key={`${inspection.project.id}-${item.code}`}>
-                              <td>{item.code}</td>
-                              <td>
-                                <input
-                                  className="table-input"
-                                  type="text"
-                                  value={item.name}
-                                  onChange={(event) =>
-                                    updatePendingItemField(
-                                      inspection.project.id,
-                                      item.code,
-                                      "name",
-                                      event.target.value,
-                                    )
-                                  }
-                                />
-                              </td>
-                              <td>
-                                <select
-                                  className="table-input"
-                                  value={item.category}
-                                  onChange={(event) =>
-                                    updatePendingItemField(
-                                      inspection.project.id,
-                                      item.code,
-                                      "category",
-                                      event.target.value,
-                                    )
-                                  }
-                                >
-                                  <option value="S">S</option>
-                                  <option value="P">P</option>
-                                  <option value="C">C</option>
-                                </select>
-                              </td>
-                              <td>
-                                <input
-                                  className="table-input"
-                                  type="number"
-                                  min="0"
-                                  step="0.0001"
-                                  value={item.amountEok}
-                                  onChange={(event) =>
-                                    updatePendingItemField(
-                                      inspection.project.id,
-                                      item.code,
-                                      "amountEok",
-                                      clampNumber(Number(event.target.value), 0, 999999),
-                                    )
-                                  }
-                                />
-                              </td>
-                              <td>{item.note ?? "-"}</td>
-                              <td>
-                                <button
-                                  className="text-button"
-                                  type="button"
-                                  onClick={() => removePendingItem(inspection.project.id, item.code)}
-                                >
-                                  {copy.removePending}
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="detail-list">
-                    <div className="detail-list__row">
-                      <strong>{copy.warnings}</strong>
-                      <span>
-                        {inspection.warnings.length > 0 ? (
-                          inspection.warnings.join(" / ")
-                        ) : (
-                          copy.noWarnings
-                        )}
-                      </span>
-                    </div>
-                  </div>
+              <div className="summary-strip review-modal__summary">
+                <article className="summary-card summary-card--strong">
+                  <span>파싱 총액</span>
+                  <strong>{formatEok(pendingReferenceSummary.totalAmount)}</strong>
+                  <small>{pendingReferenceSummary.includedCount}개 항목 기준</small>
                 </article>
-              ))}
+                <article className="summary-card">
+                  <span>E 소계</span>
+                  <strong>{formatEok(pendingReferenceSummary.categoryTotals.E)}</strong>
+                  <small>Service Cost</small>
+                </article>
+                <article className="summary-card">
+                  <span>P 소계</span>
+                  <strong>{formatEok(pendingReferenceSummary.categoryTotals.P)}</strong>
+                  <small>Procurement</small>
+                </article>
+                <article className="summary-card">
+                  <span>C 소계</span>
+                  <strong>{formatEok(pendingReferenceSummary.categoryTotals.C)}</strong>
+                  <small>Construction</small>
+                </article>
+              </div>
+
+              {pendingReferenceSummary.warnings.length > 0 ? (
+                <ul className="guide-list">
+                  {pendingReferenceSummary.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="info-panel__notice">자동 검토 경고 없이 반영 가능한 상태입니다.</p>
+              )}
+
+              <div className="table-wrap">
+                <table className="estimate-table">
+                  <thead>
+                    <tr>
+                      <th>반영</th>
+                      <th>행</th>
+                      <th>항목명</th>
+                      <th>카테고리</th>
+                      <th>금액 (억원)</th>
+                      <th>원본 경로</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingReference.items.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <input
+                            checked={item.include}
+                            type="checkbox"
+                            onChange={(event) =>
+                              setPendingReference((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      items: current.items.map((candidate) =>
+                                        candidate.id === item.id
+                                          ? {
+                                              ...candidate,
+                                              include: event.target.checked,
+                                            }
+                                          : candidate,
+                                      ),
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                        </td>
+                        <td>{item.rowNumber}</td>
+                        <td>
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(event) =>
+                              setPendingReference((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      items: current.items.map((candidate) =>
+                                        candidate.id === item.id
+                                          ? {
+                                              ...candidate,
+                                              name: event.target.value,
+                                            }
+                                          : candidate,
+                                      ),
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <select
+                            value={item.category}
+                            onChange={(event) =>
+                              setPendingReference((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      items: current.items.map((candidate) =>
+                                        candidate.id === item.id
+                                          ? {
+                                              ...candidate,
+                                              category: event.target.value as EstimateCategory,
+                                              subcategory:
+                                                getSubcategoryOptions(event.target.value as EstimateCategory)[0] ||
+                                                candidate.subcategory,
+                                            }
+                                          : candidate,
+                                      ),
+                                    }
+                                  : current,
+                              )
+                            }
+                          >
+                            {CATEGORY_ORDER.map((category) => (
+                              <option key={category} value={category}>
+                                {CATEGORY_SHORT_LABELS[category]}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            min="0"
+                            step="0.0001"
+                            type="number"
+                            value={Number((item.amount / referenceAmountUnit).toFixed(4))}
+                            onChange={(event) =>
+                              setPendingReference((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      items: current.items.map((candidate) =>
+                                        candidate.id === item.id
+                                          ? {
+                                              ...candidate,
+                                              amount:
+                                                (Number(event.target.value) || 0) * referenceAmountUnit,
+                                            }
+                                          : candidate,
+                                      ),
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <div className="cell-stack">
+                            <strong>{item.referenceCode || "-"}</strong>
+                            <small>{item.pathLabel}</small>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="review-modal__footer">
-              <button className="button button--secondary" type="button" onClick={cancelPendingImports}>
-                {copy.cancelReview}
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() => setPendingReference(null)}
+              >
+                취소
               </button>
-              <button className="button button--primary" type="button" onClick={confirmPendingImports}>
-                {copy.confirmReview}
+              <button className="button button--primary" type="button" onClick={confirmPendingReference}>
+                검수 후 반영
               </button>
             </div>
           </div>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

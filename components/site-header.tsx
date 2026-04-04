@@ -18,7 +18,7 @@ export function SiteHeader() {
           <em>Studio</em>
         </Link>
 
-        <nav className="site-header__nav" aria-label="Primary">
+        <nav className="site-header__nav" aria-label="주요 메뉴">
           {navigation.map((item) => {
             const isActive =
               pathname === item.href || (item.href === "/estimate" && pathname === "/");
