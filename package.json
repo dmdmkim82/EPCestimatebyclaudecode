@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "export:starter": "powershell -ExecutionPolicy Bypass -File ./scripts/export-estimate-starter.ps1"
+    "export:starter": "powershell -ExecutionPolicy Bypass -File ./scripts/export-estimate-starter.ps1",
+    "export:html": "node ./scripts/export-html-starter.mjs"
   },
   "dependencies": {
     "next": "^15.0.0",
