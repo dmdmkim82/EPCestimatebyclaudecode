@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "export:starter": "powershell -ExecutionPolicy Bypass -File ./scripts/export-estimate-starter.ps1"
   },
   "dependencies": {
     "next": "^15.0.0",
