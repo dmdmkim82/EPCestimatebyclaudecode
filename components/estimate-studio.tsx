@@ -5,11 +5,13 @@ import {
   EstimateAnalytics,
   type EstimateHistorySnapshot,
 } from "@/components/estimate-analytics";
+import { DisciplinePanel } from "@/components/discipline-panel";
 import {
   inspectReferenceWorkbook,
   summarizeReferenceWorkbookInspection,
   type ReferenceWorkbookInspection,
 } from "@/lib/excel-import";
+import { estimateStudioCopy as copy } from "@/lib/estimate-studio-copy";
 import {
   DEFAULT_UNCERTAINTY_PROFILE,
   DEFAULT_INPUT,
@@ -34,147 +36,6 @@ import {
 } from "@/lib/estimator";
 
 const HISTORY_LIMIT = 20;
-
-const copy = {
-  refWorkbookDesc: "기준 워크북을 불러오고 목표 프로젝트 기준으로 바로 환산합니다.",
-  importing: "워크북을 불러오는 중...",
-  uploadWorkbook: "기준 워크북 업로드",
-  localParse: "Excel 파일을 브라우저에서 바로 읽습니다.",
-  uploadTrustTitle: "파일 처리 안내",
-  uploadTrustPrimary: "업로드된 파일은 브라우저에서만 처리되며 외부로 전송되지 않습니다.",
-  uploadTrustSecondary:
-    "브라우저 저장소와 외부 API를 사용하지 않으며, 업로드 결과는 현재 세션 메모리에만 유지됩니다.",
-  uploadTrustTertiary:
-    "내부 검토 시에는 확장 프로그램이 없는 시크릿 모드 사용을 권장합니다.",
-  uploadTrustQuaternary: "민감한 작업 후에는 브라우저를 완전히 종료하세요.",
-  eok: "억원",
-  basis: "기준으로",
-  resultTail: "를 반영한 결과입니다.",
-  preEsc: "연도 보정 전",
-  startYearBasis: "착공연도 기준",
-  coreBasis: "기준값 + 타입 + 도면 차이",
-  siteAdder: "현장 / 계통 가산",
-  drawingReflect: "도면 차이 반영",
-  importFailed: "워크북을 읽지 못했습니다. 항목명과 금액 열을 확인한 뒤 다시 시도하세요.",
-  refDb: "기준 데이터",
-  estimateTitle: "견적산출 화면",
-  project: "프로젝트",
-  projectProfile: "목표 프로젝트 조건",
-  projectName: "프로젝트명",
-  siteName: "현장명",
-  capacity: "용량 (MW)",
-  siteAddress: "현장 주소",
-  latitude: "위도",
-  longitude: "경도",
-  escalation: "물가상승",
-  escalationTitle: "가격연도와 상업 조건",
-  escalationNote: "물가상승 기준 메모",
-  priceYear: "가격 기준연도",
-  startYear: "착공연도",
-  serviceEsc: "서비스 물가상승 (%)",
-  procurementEsc: "조달 물가상승 (%)",
-  constructionEsc: "시공 물가상승 (%)",
-  margin: "목표 마진 (%)",
-  warrantyRate: "하자보수 (%)",
-  siteReview: "현장 검토",
-  siteReviewTitle: "부지와 유틸리티 범위",
-  drawingReview: "도면 검토",
-  drawingReviewTitle: "기준 도면과 목표 도면 차이",
-  referenceDrawing: "기준 도면",
-  targetDrawing: "목표 도면",
-  noFile: "선택된 파일 없음",
-  civilChange: "토목 변경 (%)",
-  electricalChange: "전기 변경 (%)",
-  mechanicalChange: "기계 변경 (%)",
-  controlChange: "제어 / 계장 변경 (%)",
-  quote: "견적 결과",
-  riskGrade: "리스크 등급",
-  referenceDelta: "기준 대비 차이",
-  securityStatus: "보안 상태",
-  isolatedMode: "외부 호출 차단",
-  scaledReference: "용량 환산 기준금액",
-  escalatedReference: "물가상승 반영 기준금액",
-  coreSubtotal: "핵심 EPC 소계",
-  siteAdditions: "현장 가산",
-  warranty: "하자보수",
-  drawingAdders: "도면 차이 가산",
-  warrantyBasis: "공사비 기준 하자보수율 적용",
-  categorySplit: "항목 구분",
-  categorySplitTitle: "S / P / C 기준 물가상승 반영 금액",
-  riskEnvelope: "리스크 범위",
-  riskEnvelopeTitle: "시나리오 총액",
-  bidStrategy: "입찰 전략",
-  bidStrategyTitle: "마진 전략 비교",
-  referenceComparison: "기준 비교",
-  referenceComparisonTitle: "선택한 기준 프로젝트와 비교",
-  referenceOriginal: "기준 원본",
-  referenceEscalated: "기준 보정 후",
-  currentQuote: "현재 견적",
-  delta: "차이율",
-  referenceNote: "기준 메모",
-  riskReview: "리스크 검토",
-  riskReviewTitle: "상업 및 기술 리스크",
-  noRisk: "현재 입력값 기준으로 주요 리스크 신호는 없습니다.",
-  impact: "예상 영향",
-  estimateBasis: "산출 근거",
-  estimateBasisTitle: "현재 금액이 나온 이유",
-  securityPanel: "보안 처리",
-  securityPanelTitle: "업로드와 계산은 현재 세션 내부에서만 처리",
-  securityStorage: "브라우저 저장소 미사용",
-  securityStorageDesc: "localStorage, sessionStorage, indexedDB에 업로드 결과를 남기지 않습니다.",
-  securityNetwork: "외부 전송 차단",
-  securityNetworkDesc: "견적산출 페이지에서는 외부 지도, 시세, API 호출 없이 로컬 파싱과 계산만 수행합니다.",
-  securityReset: "새로고침 시 초기화",
-  securityResetDesc: "새로고침하거나 브라우저를 다시 열면 업로드 결과와 계산 이력이 초기화됩니다.",
-  siteSummary: "현장 입력 요약",
-  siteSummaryTitle: "현장 정보는 입력값으로만 유지",
-  siteSummaryDesc: "현장명, 주소, 좌표는 견적 검토용 입력값이며 외부 지도로 전송하지 않습니다.",
-  noCoordinates: "좌표 미입력",
-  virtualLayout: "가상 배치",
-  virtualLayoutTitle: "예상 플랜트 배치",
-  estimatedLandUse: "예상 필요 면적",
-  layoutNote: "배치 메모",
-  breakdown: "세부 내역",
-  breakdownTitle: "기준, 도면, 현장 가산 항목",
-  item: "항목",
-  kind: "구분",
-  category: "카테고리",
-  base: "기준금액",
-  escalated: "반영금액",
-  basisCol: "근거",
-  note: "비고",
-  uploadedWorkbook: "업로드한 워크북",
-  builtInReference: "기본 기준 프로젝트",
-  remove: "삭제",
-  defaultTag: "기본값",
-  reviewImport: "업로드 검수",
-  reviewImportTitle: "참조 워크북 확인 후 반영",
-  reviewImportDesc:
-    "엑셀 파싱 결과를 먼저 확인한 뒤 기준 데이터로 추가합니다. 이름, 연도, 용량은 여기서 바로 수정할 수 있습니다.",
-  parsedTotal: "파싱 총액",
-  parsedItems: "파싱 항목 수",
-  parsedSheets: "읽은 시트 수",
-  reviewName: "기준 프로젝트명",
-  reviewYear: "기준연도",
-  reviewCapacity: "기준 용량 (MW)",
-  categorySubtotal: "카테고리 소계",
-  warnings: "검토 메모",
-  noWarnings: "자동 검토 경고 없음",
-  removePending: "제외",
-  reviewItems: "항목 검수",
-  reviewItemsDesc: "항목명, 카테고리, 금액을 수정하거나 제외할 수 있습니다.",
-  reviewAmount: "금액 (억원)",
-  reviewCategoryCode: "카테고리",
-  reviewCode: "코드",
-  reviewItemNote: "비고",
-  cancelReview: "취소",
-  confirmReview: "검수 후 반영",
-  importReady: "반영 대기",
-  escalationSnapshot: "복리 반영 요약",
-  escalationApplied: "연도차 복리 적용 결과",
-  escalationNone: "기준연도와 착공연도가 같아 물가상승이 추가되지 않습니다.",
-  escalationFormula: "계산식",
-};
 
 function clampNumber(value: number, min: number, max: number) {
   if (Number.isNaN(value)) return min;
@@ -254,6 +115,7 @@ export function EstimateStudio() {
   );
   const [isInputCollapsed, setIsInputCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<"internal" | "buyer">("internal");
+  const [sideTab, setSideTab] = useState<"input" | "discipline">("input");
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [uncertaintyProfile, setUncertaintyProfile] = useState<EstimateUncertaintyProfile>(
@@ -697,6 +559,28 @@ export function EstimateStudio() {
       >
         {!isInputCollapsed ? (
         <aside className="estimate-panel estimate-panel--sticky">
+          {/* ── 사이드 탭 ── */}
+          <div className="side-tab-bar">
+            <button
+              className={`side-tab-bar__btn${sideTab === "input" ? " side-tab-bar__btn--active" : ""}`}
+              type="button"
+              onClick={() => setSideTab("input")}
+            >
+              기준 입력
+            </button>
+            <button
+              className={`side-tab-bar__btn${sideTab === "discipline" ? " side-tab-bar__btn--active" : ""}`}
+              type="button"
+              onClick={() => setSideTab("discipline")}
+            >
+              공종 산출
+            </button>
+          </div>
+
+          {sideTab === "discipline" ? (
+            <DisciplinePanel />
+          ) : (
+          <>
           <div className="control-group" id="estimate-reference">
             <div className="control-header">
               <span className="control-label">{copy.refDb}</span>
@@ -1166,6 +1050,8 @@ export function EstimateStudio() {
             </div>
           </div>
 
+          </>
+          )}{/* end sideTab discipline/input */}
         </aside>
         ) : null}
 
